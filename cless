@@ -2,8 +2,6 @@
 
 $: << File.join(File.dirname($0), "lib")
 
-require 'ncurses'
-require 'mmap'
 require 'cless'
 
 # Move around the file descriptor if not a tty!
@@ -26,6 +24,7 @@ else
   ptr = MappedStream.new(stdin)
 end
 data = MapData.new(ptr)
+display = LineDisplay.new(data)
 
 curses_init
 at_exit { curses_close }
@@ -35,10 +34,11 @@ $log.sync = true
 
 begin
   loop do
-    display_lines(data)
+    data.cache_fill(display.lines)
+    display.refresh
     Ncurses.move(Ncurses.stdscr.getmaxy-1, 0)
     Ncurses.addstr(data.debug)
-    wait_for_key(data) or break
+    wait_for_key(data, display) or break
   end
 rescue Exception => e
   Ncurses.endwin

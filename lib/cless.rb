@@ -1,5 +1,15 @@
+require 'ncurses'
+require 'mmap'
 require 'tempfile'
 require 'mmap'
+
+class Array
+  def max_update(a)
+    a.each_with_index { |x, i|
+      self[i] = x if !(v = self[i]) || v < x
+    }
+  end
+end
 
 def curses_init
   Ncurses.initscr
@@ -19,23 +29,7 @@ def curses_close
   Ncurses.endwin
 end
 
-def display_lines(data)
-  len = Ncurses.stdscr.getmaxx
-  nb = Ncurses.stdscr.getmaxy
-  Ncurses.move(0, 0)
-  i = 0
-  data.lines(nb, len) { |l|
-    Ncurses.attrset(Ncurses.COLOR_PAIR(i % 2))
-    Ncurses.addstr(l)
-    i += 1
-  }
-  if i < nb
-    Ncurses.attrset(Ncurses.COLOR_PAIR(0))
-    Ncurses.addstr(" " * (len * (nb - i)))
-  end
-end
-
-def wait_for_key(data)
+def wait_for_key(data, display)
   loop do
     case k = Ncurses.getch
     when Ncurses::KEY_DOWN: data.scroll(1); break
@@ -44,12 +38,67 @@ def wait_for_key(data)
     when Ncurses::KEY_PPAGE: data.scroll(1 - Ncurses.stdscr.getmaxy); break
     when Ncurses::KEY_LEFT: data.shift_column(-1); break
     when Ncurses::KEY_RIGHT: data.shift_column(1); break
+    when ?h: display.hilights = !display.hilights; break
+    when ?c: display.column = !display.column; break
     when Ncurses::KEY_RESIZE: break
     when ?q: return nil
     else 
+      $log.puts(k)
     end
   end
   return true
+end
+
+class LineDisplay
+  DEFAULTS = {
+    :hilights => true,          # Wether to hilight every other line
+    :column => false,            # Wether to display column number
+  }
+  attr_accessor *DEFAULTS.keys
+
+  def initialize(data, args = {})
+    DEFAULTS.each { |k, v|
+      instance_variable_set("@#{k}", args[k] || v)
+    }
+    @data = data
+  end
+
+  def lines; Ncurses.stdscr.getmaxy; end
+
+  def refresh
+    len = Ncurses.stdscr.getmaxx
+    lines = Ncurses.stdscr.getmaxy - 1
+    sizes = @data.sizes.dup
+    format = "%*s " * sizes.size
+    
+
+    Ncurses.move(0, 0)
+    Ncurses.attrset(Ncurses.COLOR_PAIR(0))
+    if @column
+      lines -= 1
+      cheader = (1..sizes.size).collect { |x| x.to_s }
+      sizes.max_update(cheader.collect { |x| x.size })
+      i = -1
+      cheader.collect! { |x| i += 1; x.center(sizes[i]) }
+      s = (format % sizes.zip(cheader).flatten)[0, len]
+      Ncurses.addstr(s)
+    end
+    i = 0
+    @data.lines(lines) { |l|
+      Ncurses.attrset(Ncurses.COLOR_PAIR(i % 2)) if @hilights
+      $log.puts([i, l].inspect)
+      s = (format % sizes.zip(l).flatten)[0, len]
+      $log.puts(s)
+      Ncurses.addstr(s)
+      i += 1
+    }
+    if i < lines
+      Ncurses.attrset(Ncurses.COLOR_PAIR(0))
+      Ncurses.addstr(" " * (len * (lines - i)))
+    end
+  ensure
+    Ncurses.refresh
+  end
 end
 
 # Read from a stream. Write data to a temporary file, which is mmap.
@@ -102,6 +151,7 @@ class MappedStream
 end
 
 class MapData
+  attr_reader :sizes
   def initialize(str)
     @str = str
     @line = @line2 = 0
@@ -118,13 +168,10 @@ class MapData
   end
 
   # yield n lines with length len to be displayed
-  def lines(n, len)
-    cache_forward(n-@cache.size) if @cache.size <= n
+  def lines(n)
     @cache.each_with_index { |l, i|
       break if i >= n
-      s = (("%*s " * @sizes.size) % @sizes.zip(l).flatten)
-      s = s[@coff, len].ljust(len)
-      yield s
+      yield l
     }
   end
 
@@ -159,14 +206,16 @@ class MapData
     end
   end
 
+  def cache_fill(n)
+    cache_forward(n - @cache.size) if @cache.size < n
+  end
+
   private
   def cache_forward(n)
-    n.times do 
+    n.times do
       noff2 = @str.index("\n", @off2) or break
       nl = @str[@off2..(noff2-1)].split
-      nl.collect { |x| x.size }.each_with_index { |x, i|
-        @sizes[i] = x if !(v = @sizes[i]) || v < x
-      }
+      @sizes.max_update(nl.collect { |x| x.size })
       @cache << nl
       @off2 = noff2 + 1
     end
@@ -178,9 +227,7 @@ class MapData
       break if @off < 2
       noff = (@str.rindex("\n", @off-2) || -1) + 1
       nl = @str[noff..(@off-2)].split
-      nl.collect { |x| x.size }.each_with_index { |x, i|
-        @sizes[i] = x if !(v = @sizes[i]) || v < x
-      }
+      @sizes.max_update(nl.collect { |x| x.size })
       @cache.unshift(nl)
       @off = noff
     end
