@@ -6,7 +6,26 @@ require 'ncurses'
 require 'mmap'
 require 'cless'
 
-data = MapData.new(ARGV[0])
+# Move around the file descriptor if not a tty!
+if !$stdout.tty?
+  $stderr.puts("Works only on terminals!")
+  exit(1)
+end
+if !$stdin.tty?
+  # Better way to get a file descriptor to reopen
+  # dup anyone?
+  stdin, w = IO.pipe    
+  w.close
+  stdin.reopen($stdin)
+  $stdin.reopen($stdout)
+end
+
+if ARGV[0]
+  ptr = Mmap.new(ARGV[0])
+else
+  ptr = MappedStream.new(stdin)
+end
+data = MapData.new(ptr)
 
 curses_init
 at_exit { curses_close }

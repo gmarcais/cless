@@ -1,3 +1,6 @@
+require 'tempfile'
+require 'mmap'
+
 def curses_init
   Ncurses.initscr
   Ncurses.start_color
@@ -49,10 +52,58 @@ def wait_for_key(data)
   return true
 end
 
+# Read from a stream. Write data to a temporary file, which is mmap.
+# Read more data from stream on a need basis, when some index  operation fail.
+class MappedStream
+  DEFAULTS = {
+    :buf_size => 64*1024,
+  }
+  attr_reader :ptr, :more
+  def initialize(fd, args = {})
+    @fd = fd
+    @more = true
+    @buf = ""
+    DEFAULTS.each { |k, v|
+      instance_variable_set("@#{k}", args[k] || v)
+    }
+    @tfd = Tempfile.new(Process.pid.to_s)
+    @ptr = Mmap.new(@tfd.path, "w")
+    @ptr.extend(10 * @buf_size)
+
+    if block_given?
+      begin
+        yield(self)
+      ensure
+        munmap
+      end
+    end
+  end
+
+  def munmap
+    @ptr.munmap
+    @tfd.close!
+  end
+
+  def rindex(*args); @ptr.rindex(*args); end
+  def index(substr, off = 0)
+    loop do
+      r = @ptr.index(substr, off) and return r
+      return nil unless @more
+      off = (@ptr.rindex("\n", @ptr.size) || -1) + 1
+      begin
+        @fd.sysread(@buf_size, @buf)
+        @ptr << @buf
+      rescue EOFError
+        @more = false
+      end
+    end
+  end
+  def [](*args); @ptr[*args]; end
+end
+
 class MapData
-#  attr_reader @line, @column, @coff, @off, @off2
-  def initialize(filename)
-    @ptr = Mmap.new(filename)
+  def initialize(str)
+    @str = str
     @line = @line2 = 0
     @column = 0
     @coff = 0           # horizontal offset
@@ -93,10 +144,6 @@ class MapData
     end
   end
 
-#  Overkill?
-#   def shift_char(delta)
-#   end
-
   def shift_column(delta)
     return if delta == 0
     if delta > 0
@@ -115,8 +162,8 @@ class MapData
   private
   def cache_forward(n)
     n.times do 
-      noff2 = @ptr.index("\n", @off2) or break
-      nl = @ptr[@off2..(noff2-1)].split
+      noff2 = @str.index("\n", @off2) or break
+      nl = @str[@off2..(noff2-1)].split
       nl.collect { |x| x.size }.each_with_index { |x, i|
         @sizes[i] = x if !(v = @sizes[i]) || v < x
       }
@@ -129,8 +176,8 @@ class MapData
   def cache_backward(n)
     n.times do
       break if @off < 2
-      noff = (@ptr.rindex("\n", @off-2) || -1) + 1
-      nl = @ptr[noff..(@off-2)].split
+      noff = (@str.rindex("\n", @off-2) || -1) + 1
+      nl = @str[noff..(@off-2)].split
       nl.collect { |x| x.size }.each_with_index { |x, i|
         @sizes[i] = x if !(v = @sizes[i]) || v < x
       }
@@ -144,7 +191,7 @@ class MapData
   def skip_forward(n)
     i = 0
     n.times do 
-      noff = @ptr.index("\n", @off) or break
+      noff = @str.index("\n", @off) or break
       @off = noff + 1
       i += 1
     end
@@ -157,7 +204,7 @@ class MapData
     i = 0
     n.times do
       break if @off2 < 2
-      @off2 = (@ptr.rindex("\n", @off2-2) || -1) + 1
+      @off2 = (@str.rindex("\n", @off2-2) || -1) + 1
       i += 1
     end
     @off = @off2 if @off > @off2
