@@ -70,7 +70,7 @@ display = LineDisplay.new(data, :column => options[:column],
                           :grey => options[:grey],
                           :line => options[:line])
 manager = Manager.new(data, display)
-trap("SIGTERM") { manager.done }
+trap("SIGTERM") { exit }
 curses_init
 
 at_exit {
@@ -82,5 +82,10 @@ $log = File.open("log", "w")
 $log.sync = true
 
 
-manager.main_loop
+begin
+  manager.main_loop
+ensure
+  Ncurses.endwin
+  ptr.munmap
+end
 
