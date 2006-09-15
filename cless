@@ -61,7 +61,7 @@ if !$stdin.tty?
 end
 
 if args[0]
-  ptr = Mmap.new(args[0])
+  ptr = MappedFile.new(args[0])
 else
   ptr = MappedStream.new(stdin)
 end

@@ -56,6 +56,7 @@ class Manager
           @data.scroll(Ncurses.stdscr.getmaxy - 1); break
       when Ncurses::KEY_PPAGE: @data.scroll(1 - Ncurses.stdscr.getmaxy); break
       when Ncurses::KEY_HOME: @data.goto_start; break
+      when Ncurses::KEY_END: @data.goto_end(@display.nb_lines); break
       when Ncurses::KEY_LEFT: @display.st_col -= 1; break
       when Ncurses::KEY_RIGHT: @display.st_col += 1; break
       when ?g: @display.grey = !@display.grey; break
@@ -230,6 +231,8 @@ class MappedStream
     @fd = fd
     @more = true
     @buf = ""
+    @line = nil
+
     DEFAULTS.each { |k, v|
       instance_variable_set("@#{k}", args[k] || v)
     }
@@ -251,6 +254,7 @@ class MappedStream
     @tfd.close!
   end
 
+  def size; @ptr.size; end
   def rindex(*args); @ptr.rindex(*args); end
   def index(substr, off = 0)
     loop do
@@ -266,6 +270,50 @@ class MappedStream
     end
   end
   def [](*args); @ptr[*args]; end
+
+  def lines
+    return @lines if @lines
+    @lines = @ptr.count("\n")
+    while @more
+      begin 
+        @fd.sysread(@buf_size, @buf)
+        @ptr << @buf
+        @lines += @buf.count("\n")
+      rescue EOFError
+        @more = false
+      end
+    end
+    @lines += 1 if @ptr[-1] != ?\n
+    return @lines
+  end
+end
+
+class MappedFile
+  def initialize(fname)
+    @ptr = Mmap.new(fname)
+    @line = nil
+
+    if block_given?
+      begin
+        yield(self)
+      ensure
+        munmap
+      end
+    end
+  end
+
+  def size; @ptr.size; end
+  def munmap; @ptr.munmap; end
+  def rindex(*args); @ptr.rindex(*args); end
+  def index(*args); @ptr.index(*args); end
+  def [](*args); @ptr[*args]; end
+  
+  def lines
+    return @lines if @lines
+    @lines = @ptr.count("\n")
+    @lines += 1 if @ptr[-1] != ?\n
+    return @lines
+  end
 end
 
 class MapData
@@ -297,8 +345,11 @@ class MapData
     @cache.clear
   end
 
-  def goto_end
-    
+  def goto_end(scroll_back = nil)
+    @line = @line2 = @str.lines
+    @off = @off2 = (@str.rindex("\n", @str.size-1) || -1) + 1
+    @cache.clear
+    scroll(-scroll_back) if scroll_back
   end
 
   # delta > for scrolling down (forward in file)
