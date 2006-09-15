@@ -34,25 +34,39 @@ def wait_for_key(data, display)
     case k = Ncurses.getch
     when Ncurses::KEY_DOWN: data.scroll(1); break
     when Ncurses::KEY_UP: data.scroll(-1); break
-    when Ncurses::KEY_NPAGE: data.scroll(Ncurses.stdscr.getmaxy - 1); break
+    when " "[0], Ncurses::KEY_NPAGE: 
+        data.scroll(Ncurses.stdscr.getmaxy - 1); break
     when Ncurses::KEY_PPAGE: data.scroll(1 - Ncurses.stdscr.getmaxy); break
-    when Ncurses::KEY_LEFT: data.shift_column(-1); break
-    when Ncurses::KEY_RIGHT: data.shift_column(1); break
-    when ?h: display.hilights = !display.hilights; break
+    when Ncurses::KEY_LEFT: display.st_col -= 1; break
+    when Ncurses::KEY_RIGHT: display.st_col += 1; break
+    when ?g: display.grey = !display.grey; break
     when ?c: display.column = !display.column; break
+    when ?l: display.line = !display.line; break
+    when ?h: hide_columns(display); break
+    when ?s: hide_columns(display, :show); break
     when Ncurses::KEY_RESIZE: break
     when ?q: return nil
     else 
-      $log.puts(k)
     end
   end
   return true
 end
 
+def hide_columns(display, show = false)
+  s = display.prompt(show ? "Show: " : "Hide: ")
+  a = s.split.collect { |x| x.to_i }
+  if a[0] && a[0] <= 0
+    display.col_hide_clear
+  else
+    show ? display.col_show(*a) : display.col_hide(*a)
+  end
+end
+
 class LineDisplay
   DEFAULTS = {
-    :hilights => true,          # Wether to hilight every other line
-    :column => false,            # Wether to display column number
+    :grey => true,          # Wether to hilight every other line
+    :column => false,           # Wether to display column number
+    :line => false,             # Wether to display line number
   }
   attr_accessor *DEFAULTS.keys
 
@@ -61,36 +75,74 @@ class LineDisplay
       instance_variable_set("@#{k}", args[k] || v)
     }
     @data = data
+    @col_hide = nil
+    @st_col = 0
   end
 
-  def lines; Ncurses.stdscr.getmaxy; end
+  def nb_lines; Ncurses.stdscr.getmaxy; end
+
+  def col_hide_clear; @col_hide = nil; end
+  def col_hide(*args)
+    args = args.collect { |x| x - 1 }
+    @col_hide ||= []
+    @col_hide.push(*args)
+    @col_hide.uniq!
+    @col_hide.sort!
+  end
+  
+  def col_show(*args) 
+    @col_hide and @col_hide -= args.collect { |x| x - 1 }
+  end
+
+  def st_col; @st_col; end
+
+  def st_col=(n)
+    return if n < 0
+    @st_col = n
+  end
 
   def refresh
     len = Ncurses.stdscr.getmaxx
-    lines = Ncurses.stdscr.getmaxy - 1
+    lines = Ncurses.stdscr.getmaxy - 1 - (@column ? 1 : 0)    
     sizes = @data.sizes.dup
-    format = "%*s " * sizes.size
-    
 
     Ncurses.move(0, 0)
     Ncurses.attrset(Ncurses.COLOR_PAIR(0))
+    if @col_hide
+      col_show = (0..(sizes.size-1)).to_a - @col_hide
+    end
     if @column
-      lines -= 1
-      cheader = (1..sizes.size).collect { |x| x.to_s }
+      cheader = (1..sizes.size).to_a
+      cheader = cheader.values_at(*col_show) if @col_hide
+      cheader.slice!(0, @st_col)
+      cheader.collect! { |x| x.to_s } 
+    end
+    sizes = sizes.values_at(*col_show) if @col_hide
+    sizes.slice!(0, @st_col)
+    sizes.unshift((@data.line + lines - 1).to_s.size) if @line
+    format = "%*s " * sizes.size
+    if @column
       sizes.max_update(cheader.collect { |x| x.size })
+      cheader.unshift("") if @line
       i = -1
       cheader.collect! { |x| i += 1; x.center(sizes[i]) }
-      s = (format % sizes.zip(cheader).flatten)[0, len]
+      s = (format % sizes.zip(cheader).flatten).ljust(len)[0, len]
       Ncurses.addstr(s)
     end
+
     i = 0
+    sline = @column ? 1 : 0
+    line_i = @data.line + 1
     @data.lines(lines) { |l|
-      Ncurses.attrset(Ncurses.COLOR_PAIR(i % 2)) if @hilights
-      $log.puts([i, l].inspect)
-      s = (format % sizes.zip(l).flatten)[0, len]
-      $log.puts(s)
-      Ncurses.addstr(s)
+      Ncurses.attrset(Ncurses.COLOR_PAIR(i % 2)) if @grey
+      a = @col_hide ? l.values_at(*col_show) : l.dup
+      a.slice!(0, @st_col)
+      a.unshift(line_i.to_s) if @line
+      s = (format % sizes.zip(a).flatten).ljust(len)[0, len]
+      Ncurses.mvaddstr(sline, 0, s)
       i += 1
+      line_i += 1
+      sline += 1
     }
     if i < lines
       Ncurses.attrset(Ncurses.COLOR_PAIR(0))
@@ -99,6 +151,51 @@ class LineDisplay
   ensure
     Ncurses.refresh
   end
+
+  def prompt(ps)
+    stdscr = Ncurses.stdscr
+    Ncurses.attrset(Ncurses.COLOR_PAIR(0))
+    Ncurses.mvaddstr(stdscr.getmaxy-1, 0, ps)
+    s = read_line(stdscr.getmaxy-1, ps.length)[0]
+    Ncurses.mvaddstr(stdscr.getmaxy-1, 0, " " * stdscr.getmaxx)
+    s
+  end
+
+  # read_line returns an array
+  # [string, last_cursor_position_in_string, keycode_of_terminating_enter_key].
+  # Complete the "when" clauses before including in your app!
+  def read_line(y, x,
+                window     = Ncurses.stdscr,
+                max_len    = (window.getmaxx - x - 1),
+                string     = "",
+                cursor_pos = 0)
+    loop do
+      window.mvaddstr(y,x,string)
+      window.move(y,x+cursor_pos)
+      ch = window.getch
+      case ch
+      when Ncurses::KEY_LEFT
+        cursor_pos = [0, cursor_pos-1].max
+      when Ncurses::KEY_RIGHT
+        # similar, implement yourself !
+      when Ncurses::KEY_ENTER, ?\n, ?\r
+        return string, cursor_pos, ch # Which return key has been used?
+      when Ncurses::KEY_BACKSPACE, ?\b
+        string = string[0...([0, cursor_pos-1].max)] + string[cursor_pos..-1]
+        cursor_pos = [0, cursor_pos-1].max
+        window.mvaddstr(y, x+string.length, " ")
+      when " "[0]..255 # remaining printables
+        if (cursor_pos < max_len)
+          string[cursor_pos,0] = ch.chr
+          cursor_pos += 1
+        else
+          Ncurses.beep
+        end
+      else
+      end
+    end    	
+    
+  end 
 end
 
 # Read from a stream. Write data to a temporary file, which is mmap.
@@ -151,12 +248,10 @@ class MappedStream
 end
 
 class MapData
-  attr_reader :sizes
+  attr_reader :sizes, :line, :line2
   def initialize(str)
     @str = str
     @line = @line2 = 0
-    @column = 0
-    @coff = 0           # horizontal offset
     @off = @off2 = 0    # @off = first character of first line in cache
                         # @off = first character of first line past cache
     @cache = []

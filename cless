@@ -26,21 +26,25 @@ end
 data = MapData.new(ptr)
 display = LineDisplay.new(data)
 
+at_exit {
+  ptr.munmap
+  Ncurses.endwin
+}
+
 curses_init
-at_exit { curses_close }
+# at_exit { curses_close }
 
 $log = File.open("log", "w")
 $log.sync = true
 
-begin
+#begin
   loop do
-    data.cache_fill(display.lines)
+    data.cache_fill(display.nb_lines)
     display.refresh
-    Ncurses.move(Ncurses.stdscr.getmaxy-1, 0)
-    Ncurses.addstr(data.debug)
     wait_for_key(data, display) or break
   end
-rescue Exception => e
-  Ncurses.endwin
-  puts("#{e.message} (#{e.class}): #{e.backtrace.join("\n")}")
-end
+#rescue Exception => e
+#  Ncurses.endwin
+#  $stderr.puts("#{e.message} (#{e.class}): #{e.backtrace.join("\n")}")
+#end
+
