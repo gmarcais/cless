@@ -15,19 +15,28 @@ end
 options = {
   :column => false,
   :line => false,
-  :grey => true,
+  :grey => false,
+  :hide => [],
 }
+onoff = proc { |k| "(" + (options[k] ? "on" : "off") + ")" }
 opts = OptionParser.new do |opts|
   opts.banner = "Usage: example.rb [options] [file]\n" +
-    "Column oriented less-like pager"
-  opts.on("--column", "Display column header") { |v|
-    options[:column] = true
+    "Column oriented less-like pager\n" +
+    "Options: (default values in parentheses)"
+  
+  opts.on("--[no-]column", "Display column header #{onoff[:column]}") { |v|
+    options[:column] = v
   }
-  opts.on("--line", "Display line number") { |v|
-    options[:line] = true
+  opts.on("--[no-]line", "Display line number #{onoff[:line]}") { |v|
+    options[:line] = v
   }
-  opts.on("--no-grey", "Do not grey every other line") { |v|
-    options[:grey] = false
+  opts.on("--[no-]grey", "Grey every other line #{onoff[:grey]}") { |v|
+    options[:grey] = v
+  }
+  opts.on("-h", "--hide COLUMNS", 
+          "Comma separated list of columns to hide") { |v|
+    a = v.split(',').collect { |x| x.to_i }.delete_if { |x| x <= 0 }
+    options[:hide] += a
   }
   opts.on_tail("-v", "--version", "Show version and exit") {
     puts(Version.join('.'))
@@ -66,21 +75,15 @@ else
   ptr = MappedStream.new(stdin)
 end
 data = MapData.new(ptr)
-display = LineDisplay.new(data, :column => options[:column],
-                          :grey => options[:grey],
-                          :line => options[:line])
+display = LineDisplay.new(data, options)
 manager = Manager.new(data, display)
 trap("SIGTERM") { exit }
 curses_init
 
-at_exit {
-  ptr.munmap
-  Ncurses.endwin
-}
+display.col_hide(*options[:hide])
 
-$log = File.open("log", "w")
-$log.sync = true
-
+# $log = File.open("log", "w")
+# $log.sync = true
 
 begin
   manager.main_loop
