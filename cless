@@ -3,10 +3,52 @@
 $: << File.join(File.dirname($0), "lib")
 
 require 'cless'
+require 'optparse'
+
+Version = [0, 0, 1]
+
+if ENV["CLESS"]
+  args = ENV["CLESS"].split + ARGV
+else
+  args = ARGV
+end
+options = {
+  :column => false,
+  :line => false,
+  :grey => true,
+}
+opts = OptionParser.new do |opts|
+  opts.banner = "Usage: example.rb [options] [file]\n" +
+    "Column oriented less-like pager"
+  opts.on("--column", "Display column header") { |v|
+    options[:column] = true
+  }
+  opts.on("--line", "Display line number") { |v|
+    options[:line] = true
+  }
+  opts.on("--no-grey", "Do not grey every other line") { |v|
+    options[:grey] = false
+  }
+  opts.on_tail("-v", "--version", "Show version and exit") {
+    puts(Version.join('.'))
+    exit(0)
+  }
+  opts.on_tail("-h", "--help", "This message") {
+    puts(opts)
+    exit(0)
+  }
+end
+opts.parse!(args)
 
 # Move around the file descriptor if not a tty!
 if !$stdout.tty?
   $stderr.puts("Works only on terminals!")
+  $stderr.puts(opts)
+  exit(1)
+end
+if args.empty? && $stdin.tty?
+  $stderr.puts("Cannot read from data tty")
+  $stderr.puts(opts)
   exit(1)
 end
 if !$stdin.tty?
@@ -18,33 +60,27 @@ if !$stdin.tty?
   $stdin.reopen($stdout)
 end
 
-if ARGV[0]
-  ptr = Mmap.new(ARGV[0])
+if args[0]
+  ptr = Mmap.new(args[0])
 else
   ptr = MappedStream.new(stdin)
 end
 data = MapData.new(ptr)
-display = LineDisplay.new(data)
+display = LineDisplay.new(data, :column => options[:column],
+                          :grey => options[:grey],
+                          :line => options[:line])
+manager = Manager.new(data, display)
+trap("SIGTERM") { manager.done }
+curses_init
 
 at_exit {
   ptr.munmap
   Ncurses.endwin
 }
 
-curses_init
-# at_exit { curses_close }
-
 $log = File.open("log", "w")
 $log.sync = true
 
-#begin
-  loop do
-    data.cache_fill(display.nb_lines)
-    display.refresh
-    wait_for_key(data, display) or break
-  end
-#rescue Exception => e
-#  Ncurses.endwin
-#  $stderr.puts("#{e.message} (#{e.class}): #{e.backtrace.join("\n")}")
-#end
+
+manager.main_loop
 

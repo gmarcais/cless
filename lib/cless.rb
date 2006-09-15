@@ -29,36 +29,56 @@ def curses_close
   Ncurses.endwin
 end
 
-def wait_for_key(data, display)
-  loop do
-    case k = Ncurses.getch
-    when Ncurses::KEY_DOWN: data.scroll(1); break
-    when Ncurses::KEY_UP: data.scroll(-1); break
-    when " "[0], Ncurses::KEY_NPAGE: 
-        data.scroll(Ncurses.stdscr.getmaxy - 1); break
-    when Ncurses::KEY_PPAGE: data.scroll(1 - Ncurses.stdscr.getmaxy); break
-    when Ncurses::KEY_LEFT: display.st_col -= 1; break
-    when Ncurses::KEY_RIGHT: display.st_col += 1; break
-    when ?g: display.grey = !display.grey; break
-    when ?c: display.column = !display.column; break
-    when ?l: display.line = !display.line; break
-    when ?h: hide_columns(display); break
-    when ?s: hide_columns(display, :show); break
-    when Ncurses::KEY_RESIZE: break
-    when ?q: return nil
-    else 
+class Manager
+  def initialize(data, display)
+    @data = data
+    @display = display
+    @done = false
+  end
+
+  def done; @done = true; end
+
+  def main_loop
+    while !@done do
+      @data.cache_fill(@display.nb_lines)
+      @display.refresh
+      wait_for_key or break
     end
   end
-  return true
-end
+  
+  def wait_for_key
+    while !@done do
+      case k = Ncurses.getch
+      when Ncurses::KEY_DOWN, Ncurses::KEY_ENTER, ?\n, ?\r: 
+          @data.scroll(1); break
+      when Ncurses::KEY_UP: @data.scroll(-1); break
+      when " "[0], Ncurses::KEY_NPAGE: 
+          @data.scroll(Ncurses.stdscr.getmaxy - 1); break
+      when Ncurses::KEY_PPAGE: @data.scroll(1 - Ncurses.stdscr.getmaxy); break
+      when Ncurses::KEY_LEFT: @display.st_col -= 1; break
+      when Ncurses::KEY_RIGHT: @display.st_col += 1; break
+      when ?g: @display.grey = !@display.grey; break
+      when ?c: @display.column = !@display.column; break
+      when ?l: @display.line = !@display.line; break
+      when ?h: hide_columns; break
+      when ?H: hide_columns(:show); break
+      when Ncurses::KEY_RESIZE: break
+      when ?q: return nil
+      else 
+        $log.puts("key #{k}")
+      end
+    end
+    return true
+  end
 
-def hide_columns(display, show = false)
-  s = display.prompt(show ? "Show: " : "Hide: ")
-  a = s.split.collect { |x| x.to_i }
-  if a[0] && a[0] <= 0
-    display.col_hide_clear
-  else
-    show ? display.col_show(*a) : display.col_hide(*a)
+  def hide_columns(show = false)
+    s = @display.prompt(show ? "Show: " : "Hide: ")
+    a = s.split.collect { |x| x.to_i }
+    if a[0] && a[0] <= 0
+      @display.col_hide_clear
+    else
+      show ? @display.col_show(*a) : @display.col_hide(*a)
+    end
   end
 end
 
@@ -72,7 +92,7 @@ class LineDisplay
 
   def initialize(data, args = {})
     DEFAULTS.each { |k, v|
-      instance_variable_set("@#{k}", args[k] || v)
+      instance_variable_set("@#{k}", args[k].nil? ? v : args[k])
     }
     @data = data
     @col_hide = nil
