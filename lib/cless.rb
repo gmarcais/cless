@@ -34,6 +34,7 @@ class Manager
     @data = data
     @display = display
     @done = false
+    @status = ""
   end
 
   def done; @done = true; end
@@ -42,6 +43,7 @@ class Manager
     while !@done do
       @data.cache_fill(@display.nb_lines)
       @display.refresh
+      @display.wait_status(@status)
       wait_for_key or break
     end
   end
@@ -166,12 +168,19 @@ class LineDisplay
       line_i += 1
       sline += 1
     }
-    if i < lines
-      Ncurses.attrset(Ncurses.COLOR_PAIR(0))
-      Ncurses.addstr(" " * (len * (lines - i)))
-    end
+    Ncurses.clrtobot
   ensure
     Ncurses.refresh
+  end
+
+  def wait_status(status)
+    wprompt = ":  "
+    Ncurses.mvaddstr(Ncurses.stdscr.getmaxy-1, 0, wprompt)
+    unless status.empty?
+      Ncurses.attrset(Ncurses::A_BOLD)
+      Ncurses.addstr(status[0, Ncurses.stdscr.getmaxx - wprompt.length])
+      Ncurses.attrset(Ncurses::A_NORMAL)
+    end
   end
 
   def prompt(ps)
