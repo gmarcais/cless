@@ -55,6 +55,7 @@ class Manager
       when " "[0], Ncurses::KEY_NPAGE: 
           @data.scroll(Ncurses.stdscr.getmaxy - 1); break
       when Ncurses::KEY_PPAGE: @data.scroll(1 - Ncurses.stdscr.getmaxy); break
+      when Ncurses::KEY_HOME: @data.goto_start; break
       when Ncurses::KEY_LEFT: @display.st_col -= 1; break
       when Ncurses::KEY_RIGHT: @display.st_col += 1; break
       when ?g: @display.grey = !@display.grey; break
@@ -99,7 +100,7 @@ class LineDisplay
     @st_col = 0
   end
 
-  def nb_lines; Ncurses.stdscr.getmaxy; end
+  def nb_lines; Ncurses.stdscr.getmaxy - 1 - (@column ? 1 : 0); end
 
   def col_hide_clear; @col_hide = nil; end
   def col_hide(*args)
@@ -288,6 +289,16 @@ class MapData
       break if i >= n
       yield l
     }
+  end
+
+  def goto_start
+    @line = @line2 = 0
+    @off = @off2 = 0
+    @cache.clear
+  end
+
+  def goto_end
+    
   end
 
   # delta > for scrolling down (forward in file)
