@@ -17,7 +17,7 @@ onoff = proc { |k| "(" + (options[k] ? "on" : "off") + ")" }
 loop do
   again = false
   opts = OptionParser.new do |opts|
-    opts.banner = "Usage: example.rb [options] [file]\n" +
+    opts.banner = "Usage: cless [options] [file]\n" +
       "Column oriented less-like pager\n" +
       "Options: (default values in parentheses)"
     
