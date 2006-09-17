@@ -11,29 +11,53 @@ class Array
   end
 end
 
-def curses_init
-  Ncurses.initscr
-  Ncurses.start_color
-#  Ncurses.raw
-  Ncurses.cbreak
-  Ncurses.noecho
-  Ncurses.nonl
-  Ncurses.stdscr.intrflush(false)
-  Ncurses.stdscr.immedok(false)
-  Ncurses.keypad(Ncurses.stdscr, true)
+class Curses
+  def initialize
+    Ncurses.initscr
+    @started = true
+    Ncurses.start_color
+    Ncurses.cbreak
+    Ncurses.noecho
+    Ncurses.nonl
+    Ncurses.stdscr.intrflush(false)
+    Ncurses.stdscr.immedok(false)
+    Ncurses.keypad(Ncurses.stdscr, true)
 
-  Ncurses.init_pair(1, Ncurses::COLOR_BLACK, Ncurses::COLOR_WHITE)
-  Ncurses.init_pair(2, Ncurses::COLOR_BLACK, Ncurses::COLOR_WHITE)
-end
+    @basic_colors= [Ncurses::COLOR_BLACK, Ncurses::COLOR_RED, 
+      Ncurses::COLOR_GREEN, Ncurses::COLOR_YELLOW, 
+      Ncurses::COLOR_BLUE, Ncurses::COLOR_MAGENTA, Ncurses::COLOR_WHITE].sort
 
-def curses_close
-  Ncurses.endwin
+    # Create our pair, with same foreground as current but different background
+    f, b = [], []
+    Ncurses.pair_content(0, f, b)
+    @basic_colors.each_with_index do |c, i|
+      Ncurses.init_pair(i + 1, f[0], c)
+    end
+    @basic_colors.each_with_index do |c, i|
+      Ncurses.init_pair(@basic_colors.size + i + 1, c, b[0])
+    end
+
+    begin
+      yield self
+    ensure
+      @started && Ncurses.endwin
+    end
+  end
+
+  def max_pair; 2*@basic_colors.size + 1; end
+
+  def next_pair(i)
+    i = (i+1) % max_pair
+    i = 1 if i == 0
+    i
+  end
 end
 
 class Manager
-  def initialize(data, display)
+  def initialize(data, display, curses)
     @data = data
     @display = display
+    @curses = curses
     @done = false
     @status = ""
   end
@@ -50,6 +74,7 @@ class Manager
   end
   
   def wait_for_key
+    status = nil
     while !@done do
       case k = Ncurses.getch
       when Ncurses::KEY_DOWN, Ncurses::KEY_ENTER, ?\n, ?\r: 
@@ -62,6 +87,10 @@ class Manager
       when Ncurses::KEY_END: @data.goto_end; break
       when Ncurses::KEY_LEFT: @display.st_col -= 1; break
       when Ncurses::KEY_RIGHT: @display.st_col += 1; break
+      when Ncurses::KEY_F2
+        @display.grey_color = @curses.next_pair(@display.grey_color)
+        status = "New color: #{@display.grey_color}"
+        break
       when ?g: @display.grey = !@display.grey; break
       when ?c: @display.column = !@display.column; break
       when ?l: @display.line = !@display.line; break
@@ -70,9 +99,10 @@ class Manager
       when Ncurses::KEY_RESIZE: break
       when ?q: return nil
       else 
-        $log.puts("key #{k}")
       end
     end
+    
+    @status = status ? status : ""
     return true
   end
 
@@ -90,11 +120,13 @@ end
 class LineDisplay
   DEFAULTS = {
     :grey => true,          # Wether to hilight every other line
+    :grey_color => 1,
     :column => false,           # Wether to display column number
     :line => false,             # Wether to display line number
   }
   attr_accessor *DEFAULTS.keys
 
+  attr_accessor :grey_color
   def initialize(data, args = {})
     DEFAULTS.each { |k, v|
       instance_variable_set("@#{k}", args[k].nil? ? v : args[k])
@@ -159,7 +191,8 @@ class LineDisplay
     sline = @column ? 1 : 0
     line_i = @data.line + 1
     @data.lines(lines) { |l|
-      Ncurses.attrset(Ncurses.COLOR_PAIR(i % 2)) if @grey
+      @grey and 
+        Ncurses.attrset(Ncurses.COLOR_PAIR((line_i%2 == 0) ? 0 : @grey_color))
       a = @col_hide ? l.values_at(*col_show) : l.dup
       a.slice!(0, @st_col)
       a.unshift(line_i.to_s) if @line
@@ -175,7 +208,8 @@ class LineDisplay
   end
 
   def wait_status(status)
-    wprompt = ":  "
+    wprompt = ":"
+    Ncurses.attrset(Ncurses::A_NORMAL)
     Ncurses.mvaddstr(Ncurses.stdscr.getmaxy-1, 0, wprompt)
     unless status.empty?
       Ncurses.attrset(Ncurses::A_BOLD)
@@ -186,10 +220,11 @@ class LineDisplay
 
   def prompt(ps)
     stdscr = Ncurses.stdscr
+    len = stdscr.getmaxx
     Ncurses.attrset(Ncurses.COLOR_PAIR(0))
-    Ncurses.mvaddstr(stdscr.getmaxy-1, 0, ps)
+    Ncurses.mvaddstr(stdscr.getmaxy-1, 0, ps.ljust(len)[0, len])
     s = read_line(stdscr.getmaxy-1, ps.length)[0]
-    Ncurses.mvaddstr(stdscr.getmaxy-1, 0, " " * stdscr.getmaxx)
+    Ncurses.mvaddstr(stdscr.getmaxy-1, 0, " " * len)
     s
   end
 

@@ -14,6 +14,7 @@ options = {
   :column => false,
   :line => false,
   :grey => false,
+  :grey_color => 1,
   :hide => [],
 }
 onoff = proc { |k| "(" + (options[k] ? "on" : "off") + ")" }
@@ -30,6 +31,9 @@ opts = OptionParser.new do |opts|
   }
   opts.on("--[no-]grey", "Grey every other line #{onoff[:grey]}") { |v|
     options[:grey] = v
+  }
+  opts.on("--color COLOR", Integer, "Grey color") { |v|
+    options[:grey_color] = v
   }
   opts.on("-h", "--hide COLUMNS", 
           "Comma separated list of columns to hide") { |v|
@@ -70,21 +74,25 @@ if args[0]
 else
   ptr = MappedStream.new(stdin)
 end
-data = MapData.new(ptr)
-display = LineDisplay.new(data, options)
-manager = Manager.new(data, display)
 trap("SIGTERM") { exit }
-curses_init
 
-display.col_hide(*options[:hide])
 
 # $log = File.open("log", "w")
 # $log.sync = true
 
 begin
-  manager.main_loop
+  Curses.new { |curses|
+
+    options[:grey_color] = 1 if options[:grey_color] > curses.max_pair
+
+    data = MapData.new(ptr)
+    display = LineDisplay.new(data, options)
+    manager = Manager.new(data, display, curses)
+    
+    display.col_hide(*options[:hide])
+
+    manager.main_loop
+  }
 ensure
-  Ncurses.endwin
   ptr.munmap
 end
-
