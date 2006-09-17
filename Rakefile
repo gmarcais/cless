@@ -13,3 +13,8 @@ begin
 rescue LoadError
   # rcov not installed!
 end
+
+task :cless do |t|
+  ARGV.shift
+  exec("ruby", "-Ilib", "./cless", *ARGV)
+end
