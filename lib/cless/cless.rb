@@ -14,7 +14,8 @@ end
 def curses_init
   Ncurses.initscr
   Ncurses.start_color
-  Ncurses.raw
+#  Ncurses.raw
+  Ncurses.cbreak
   Ncurses.noecho
   Ncurses.nonl
   Ncurses.stdscr.intrflush(false)
