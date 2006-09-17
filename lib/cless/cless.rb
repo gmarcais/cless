@@ -59,7 +59,7 @@ class Manager
           @data.scroll(Ncurses.stdscr.getmaxy - 1); break
       when Ncurses::KEY_PPAGE: @data.scroll(1 - Ncurses.stdscr.getmaxy); break
       when Ncurses::KEY_HOME: @data.goto_start; break
-      when Ncurses::KEY_END: @data.goto_end(@display.nb_lines); break
+      when Ncurses::KEY_END: @data.goto_end; break
       when Ncurses::KEY_LEFT: @display.st_col -= 1; break
       when Ncurses::KEY_RIGHT: @display.st_col += 1; break
       when ?g: @display.grey = !@display.grey; break
@@ -355,11 +355,16 @@ class MapData
     @cache.clear
   end
 
-  def goto_end(scroll_back = nil)
+  def goto_end
     @line = @line2 = @str.lines
     @off = @off2 = (@str.rindex("\n", @str.size-1) || -1) + 1
+    cache_size = @cache.size
     @cache.clear
-    scroll(-scroll_back) if scroll_back
+    scroll(-cache_size)
+  end
+
+  def search(dir = :forward)
+    
   end
 
   # delta > for scrolling down (forward in file)
