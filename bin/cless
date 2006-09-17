@@ -5,11 +5,6 @@ require 'optparse'
 
 Version = [0, 0, 1]
 
-if ENV["CLESS"]
-  args = ENV["CLESS"].split + ARGV
-else
-  args = ARGV
-end
 options = {
   :column => false,
   :line => false,
@@ -18,38 +13,58 @@ options = {
   :hide => [],
 }
 onoff = proc { |k| "(" + (options[k] ? "on" : "off") + ")" }
-opts = OptionParser.new do |opts|
-  opts.banner = "Usage: example.rb [options] [file]\n" +
-    "Column oriented less-like pager\n" +
-    "Options: (default values in parentheses)"
-  
-  opts.on("--[no-]column", "Display column header #{onoff[:column]}") { |v|
-    options[:column] = v
-  }
-  opts.on("--[no-]line", "Display line number #{onoff[:line]}") { |v|
-    options[:line] = v
-  }
-  opts.on("--[no-]grey", "Grey every other line #{onoff[:grey]}") { |v|
-    options[:grey] = v
-  }
-  opts.on("--color COLOR", Integer, "Grey color") { |v|
-    options[:grey_color] = v
-  }
-  opts.on("-h", "--hide COLUMNS", 
-          "Comma separated list of columns to hide") { |v|
-    a = v.split(',').collect { |x| x.to_i }.delete_if { |x| x <= 0 }
-    options[:hide] += a
-  }
-  opts.on_tail("-v", "--version", "Show version and exit") {
-    puts(Version.join('.'))
-    exit(0)
-  }
-  opts.on_tail("-h", "--help", "This message") {
-    puts(opts)
-    exit(0)
-  }
+
+loop do
+  again = false
+  opts = OptionParser.new do |opts|
+    opts.banner = "Usage: example.rb [options] [file]\n" +
+      "Column oriented less-like pager\n" +
+      "Options: (default values in parentheses)"
+    
+    opts.on("--[no-]column", "Display column header #{onoff[:column]}") { |v|
+      options[:column] = v
+    }
+    opts.on("--[no-]line", "Display line number #{onoff[:line]}") { |v|
+      options[:line] = v
+    }
+    opts.on("--[no-]grey", "Grey every other line #{onoff[:grey]}") { |v|
+      options[:grey] = v
+    }
+    opts.on("--color COLOR", Integer, "Grey color " +
+              "(#{options[:grey_color]})") { |v|
+      options[:grey_color] = v
+    }
+    opts.on("-h", "--hide COLUMNS", 
+            "Comma separated list of columns to hide") { |v|
+      a = v.split(',').collect { |x| x.to_i }.delete_if { |x| x <= 0 }
+      options[:hide] += a
+    }
+    opts.on_tail("-v", "--version", "Show version and exit") {
+      puts(Version.join('.'))
+      exit(0)
+    }
+    opts.on_tail("--help", "This message") {
+      puts(opts)
+      exit(0)
+    }
+  end
+
+  if ENV["CLESS"]
+    args = ENV["CLESS"].split
+    ENV["CLESS"] = nil
+    again = true
+  else
+    args = ARGV
+  end
+  begin
+    opts.parse!(args)
+  rescue => e
+    $stderr.puts("Error (#{e.class}): #{e.message}")
+    $stderr.puts(opts)
+    exit(1)
+  end
+  break unless again
 end
-opts.parse!(args)
 
 # Move around the file descriptor if not a tty!
 if !$stdout.tty?
@@ -57,7 +72,7 @@ if !$stdout.tty?
   $stderr.puts(opts)
   exit(1)
 end
-if args.empty? && $stdin.tty?
+if ARGV.empty? && $stdin.tty?
   $stderr.puts("Cannot read from data tty")
   $stderr.puts(opts)
   exit(1)
@@ -69,8 +84,8 @@ if !$stdin.tty?
   $stdin.reopen($stdout)
 end
 
-if args[0]
-  ptr = MappedFile.new(args[0])
+if ARGV[0]
+  ptr = MappedFile.new(ARGV[0])
 else
   ptr = MappedStream.new(stdin)
 end
