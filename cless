@@ -61,9 +61,7 @@ end
 if !$stdin.tty?
   # Better way to get a file descriptor to reopen
   # dup anyone?
-  stdin, w = IO.pipe    
-  w.close
-  stdin.reopen($stdin)
+  stdin = $stdin.dup
   $stdin.reopen($stdout)
 end
 
