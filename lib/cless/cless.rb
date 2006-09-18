@@ -15,29 +15,31 @@ class Curses
   def initialize
     Ncurses.initscr
     @started = true
-    Ncurses.start_color
-    Ncurses.cbreak
-    Ncurses.noecho
-    Ncurses.nonl
-    Ncurses.stdscr.intrflush(false)
-    Ncurses.stdscr.immedok(false)
-    Ncurses.keypad(Ncurses.stdscr, true)
-
-    @basic_colors= [Ncurses::COLOR_BLACK, Ncurses::COLOR_RED, 
-      Ncurses::COLOR_GREEN, Ncurses::COLOR_YELLOW, 
-      Ncurses::COLOR_BLUE, Ncurses::COLOR_MAGENTA, Ncurses::COLOR_WHITE].sort
-
-    # Create our pair, with same foreground as current but different background
-    f, b = [], []
-    Ncurses.pair_content(0, f, b)
-    @basic_colors.each_with_index do |c, i|
-      Ncurses.init_pair(i + 1, f[0], c)
-    end
-    @basic_colors.each_with_index do |c, i|
-      Ncurses.init_pair(@basic_colors.size + i + 1, c, b[0])
-    end
-
     begin
+      Ncurses.start_color
+      Ncurses.cbreak
+      Ncurses.noecho
+      Ncurses.nonl
+      Ncurses.stdscr.intrflush(false)
+      Ncurses.stdscr.immedok(false)
+      Ncurses.keypad(Ncurses.stdscr, true)
+
+      @basic_colors= [Ncurses::COLOR_BLACK, Ncurses::COLOR_RED, 
+        Ncurses::COLOR_GREEN, Ncurses::COLOR_YELLOW, 
+        Ncurses::COLOR_BLUE, Ncurses::COLOR_MAGENTA, Ncurses::COLOR_WHITE]
+
+      attr, pair, opts = [], [], []
+      Ncurses.attr_get(attr, pair, opts)
+      # Create our pair, with same foreground as current but different background
+      f, b = [], []
+      Ncurses.pair_content(0, f, b)
+      @basic_colors.each_with_index do |c, i|
+        Ncurses.init_pair(i + 1, f[0], c)
+      end
+      @basic_colors.each_with_index do |c, i|
+        Ncurses.init_pair(@basic_colors.size + i + 1, c, b[0])
+      end
+
       yield self
     ensure
       @started && Ncurses.endwin
