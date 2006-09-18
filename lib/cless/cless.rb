@@ -81,8 +81,8 @@ class Manager
           @data.scroll(1); break
       when Ncurses::KEY_UP: @data.scroll(-1); break
       when " "[0], Ncurses::KEY_NPAGE: 
-          @data.scroll(Ncurses.stdscr.getmaxy - 1); break
-      when Ncurses::KEY_PPAGE: @data.scroll(1 - Ncurses.stdscr.getmaxy); break
+          @data.scroll(@display.nb_lines - 1); break
+      when Ncurses::KEY_PPAGE: @data.scroll(1 - @display.nb_lines); break
       when Ncurses::KEY_HOME: @data.goto_start; break
       when Ncurses::KEY_END: @data.goto_end; break
       when Ncurses::KEY_LEFT: @display.st_col -= 1; break
