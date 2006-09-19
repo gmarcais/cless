@@ -238,6 +238,8 @@ class LineDisplay
         sizes.zip(ms).each_with_index { |sm, i|
           s, m = *sm
           if m
+            Ncurses.addstr(str = (" " * (s - m.string.length))[0, clen])
+            clen -= str.length; break if clen <= 0
             Ncurses.addstr(str = m.pre_match[0, clen])
             clen -= str.length; break if clen <= 0
             Ncurses.attron(Ncurses::A_REVERSE)
@@ -246,8 +248,8 @@ class LineDisplay
             clen -= str.length; break if clen <= 0
             Ncurses.addstr(str = m.post_match[0, clen])
             clen -= str.length; break if clen <= 0
-            Ncurses.addstr(str = (" " * (s - m.string.length + 1))[0, clen])
-            clen -= str.length; break if clen <= 0
+            Ncurses.addstr(str = " ")
+            clen -= str.length; break if clen <= 0            
           else
             Ncurses.addstr(str = ("%*s " % [s, a[i]])[0, clen])
             clen -= str.length; break if clen <= 0
