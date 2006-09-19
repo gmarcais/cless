@@ -98,6 +98,10 @@ class Manager
       when ?l: @display.line = !@display.line; break
       when ?h: hide_columns; break
       when ?H: hide_columns(:show); break
+      when ?/: status = search(:forward); break
+      when ??: status = search(:backward); break
+      when ?n: status = repeat_search(:forward); break
+      when ?p: status = repeat_search(:backward); break
       when Ncurses::KEY_RESIZE: break
       when ?q: return nil
       else 
@@ -116,6 +120,30 @@ class Manager
     else
       show ? @display.col_show(*a) : @display.col_hide(*a)
     end
+  end
+
+  # Return a status if an error occur, otherwise, returns nil
+  def search(dir = :forward)
+    s = @display.prompt("%s Search: " % 
+                          [(dir == :forward) ? "Forward" : "Backward"])
+    if s =~ /^\s*$/
+      @data.search_clear
+    else
+      begin
+        pattern = Regexp.new(s)
+        @data.search(pattern) or return "Pattern not found!"
+      rescue RegexpError => e
+        return "Bad regexp: #{e.message}"
+      end
+    end
+    return nil
+  end
+
+  # Return a status if an error occur, otherwise, returns nil
+  def repeat_search(dir = :forward)
+    return "No pattern" if !@data.pattern
+    @data.repeat_search(dir) or return "Pattern not found!"
+    return nil
   end
 end
 
@@ -162,27 +190,26 @@ class LineDisplay
 
   def refresh
     len = Ncurses.stdscr.getmaxx
-    lines = Ncurses.stdscr.getmaxy - 1 - (@column ? 1 : 0)    
+    lines = nb_lines
     sizes = @data.sizes.dup
 
     Ncurses.move(0, 0)
     Ncurses.attrset(Ncurses.COLOR_PAIR(0))
-    if @col_hide
-      col_show = (0..(sizes.size-1)).to_a - @col_hide
-    end
+    col_show = (0..(sizes.size-1)).to_a
+    col_show -= @col_hide if @col_hide
     if @column
       cheader = (1..sizes.size).to_a
-      cheader = cheader.values_at(*col_show) if @col_hide
+      cheader = cheader.values_at(*col_show)
       cheader.slice!(0, @st_col)
       cheader.collect! { |x| x.to_s } 
     end
-    sizes = sizes.values_at(*col_show) if @col_hide
+    sizes = sizes.values_at(*col_show)
     sizes.slice!(0, @st_col)
-    sizes.unshift((@data.line + lines - 1).to_s.size) if @line
+    linec = (@data.line + lines).to_s.size
     format = "%*s " * sizes.size
     if @column
       sizes.max_update(cheader.collect { |x| x.size })
-      cheader.unshift("") if @line
+      Ncurses.addstr(" " * (linec + 1)) if @line
       i = -1
       cheader.collect! { |x| i += 1; x.center(sizes[i]) }
       s = (format % sizes.zip(cheader).flatten).ljust(len)[0, len]
@@ -192,14 +219,44 @@ class LineDisplay
     i = 0
     sline = @column ? 1 : 0
     line_i = @data.line + 1
+    len -= linec + 1 if @line
     @data.lines(lines) { |l|
       @grey and 
         Ncurses.attrset(Ncurses.COLOR_PAIR((line_i%2 == 0) ? 0 : @grey_color))
-      a = @col_hide ? l.values_at(*col_show) : l.dup
+      a = l.values_at(*col_show)
       a.slice!(0, @st_col)
-      a.unshift(line_i.to_s) if @line
-      s = (format % sizes.zip(a).flatten).ljust(len)[0, len]
-      Ncurses.mvaddstr(sline, 0, s)
+      Ncurses.attron(Ncurses::A_REVERSE) if l.has_match
+      Ncurses.mvaddstr(sline, 0, "%*s " % [linec, line_i])
+      Ncurses.attroff(Ncurses::A_REVERSE) if l.has_match
+      if l.has_match
+        # Lines has search matches, display a field at a time
+        ms = l.matches_at(*col_show)
+        ms.slice!(0, @st_col)
+        clen = len
+        sizes.zip(ms).each_with_index { |sm, i|
+          s, m = *sm
+          if m
+            Ncurses.addstr(str = m.pre_match[0, clen])
+            clen -= str.length; break if clen <= 0
+            Ncurses.attron(Ncurses::A_REVERSE)
+            Ncurses.addstr(str = m[0][0, clen])
+            Ncurses.attroff(Ncurses::A_REVERSE)
+            clen -= str.length; break if clen <= 0
+            Ncurses.addstr(str = m.post_match[0, clen])
+            clen -= str.length; break if clen <= 0
+            Ncurses.addstr(str = (" " * (s - m.string.length + 1))[0, clen])
+            clen -= str.length; break if clen <= 0
+          else
+            Ncurses.addstr(str = ("%*s " % [s, a[i]])[0, clen])
+            clen -= str.length; break if clen <= 0
+          end
+        }
+        Ncurses.addstr(" " * clen) if clen > 0
+      else
+        # No match, display all at once
+        str = (format % sizes.zip(a).flatten).ljust(len)[0, len]
+        Ncurses.addstr(str)
+      end
       i += 1
       line_i += 1
       sline += 1
@@ -372,8 +429,34 @@ class MappedFile
   end
 end
 
+class Line
+  attr_reader :has_match
+
+  def initialize(a)
+    @a = a
+    @m = []
+    @has_match = false
+  end
+
+  def values_at(*args); @a.values_at(*args); end
+  def matches_at(*args); @m.values_at(*args); end
+
+  def match(pattern)
+    does_match = false
+    @a.each_with_index { |f, i|
+      if m = f.match(pattern)
+        does_match = true
+        @m[i] = m
+      end
+    }
+    @has_match = does_match
+  end
+
+  def clear_match; @has_match = false; @m.clear; end
+end
+
 class MapData
-  attr_reader :sizes, :line, :line2
+  attr_reader :sizes, :line, :line2, :pattern
   def initialize(str)
     @str = str
     @line = @line2 = 0
@@ -381,6 +464,7 @@ class MapData
                         # @off = first character of first line past cache
     @cache = []
     @sizes = []
+    @pattern = nil      # search pattern
   end
 
   def debug
@@ -409,8 +493,43 @@ class MapData
     scroll(-cache_size)
   end
 
-  def search(dir = :forward)
-    
+  # Return true if pattern found, false otherwise
+  def search(pattern, dir = :forward)
+    search_clear if @pattern
+    @pattern = pattern
+    first_line = nil
+    cache = (dir == :forward) ? @cache : @cache.reverse
+    cache.each_with_index { |l, i|
+      l.match(@pattern) and first_line ||= i
+    }
+    if first_line
+      scroll((dir == :forward) ? first_line : -first_line)
+      return true
+    else
+      return search_next(dir)
+    end
+  end
+
+  def repeat_search(dir = :forward)
+    first_line = nil
+    cache = (dir == :forward) ? @cache : @cache.reverse
+    cache[1..-1].each_with_index { |l, i|
+      if l.has_match
+        first_line = i
+        break
+      end
+    }
+    if first_line
+      scroll((dir == :forward) ? first_line + 1 : -first_line - 1)
+      return true
+    else
+      return search_next(dir)
+    end
+  end
+
+  def search_clear
+    @pattern = nil
+    @cache.each { |l| l.clear_match }
   end
 
   # delta > for scrolling down (forward in file)
@@ -449,12 +568,36 @@ class MapData
   end
 
   private
+  def search_next(dir = :forward)
+    if dir == :forward
+      m = @str.index(@pattern, @off2)
+    else
+      m = @str.rindex(@pattern, @off)
+    end
+    return false if !m
+    if dir == :forward
+      old_off2, old_line2 = @off2, @line2
+      @off = @off2 = (@str.rindex("\n", m) || -1) + 1
+      @line = @line2 = old_line2 + @str[old_off2..@off2].count("\n")
+      @cache.clear
+    else
+      old_off, old_line = @off, @line
+      @off = @off2 = (@str.rindex("\n", m) || -1) + 1
+      @line = @line2 = old_line - @str[@off..old_off].count("\n")
+      cache_size = @cache.size
+      @cache.clear
+      scroll(-cache_size+1)
+    end
+    return true
+  end
+
   def cache_forward(n)
     n.times do
       noff2 = @str.index("\n", @off2) or break
       nl = @str[@off2..(noff2-1)].split
       @sizes.max_update(nl.collect { |x| x.size })
-      @cache << nl
+      @cache << (l = Line.new(nl))
+      l.match(@pattern) if @pattern
       @off2 = noff2 + 1
     end
     @line2 = @line + @cache.size
@@ -466,7 +609,8 @@ class MapData
       noff = (@str.rindex("\n", @off-2) || -1) + 1
       nl = @str[noff..(@off-2)].split
       @sizes.max_update(nl.collect { |x| x.size })
-      @cache.unshift(nl)
+      @cache.unshift(l = Line.new(nl))
+      l.match(@pattern) if @pattern
       @off = noff
     end
     @line = @line2 - @cache.size
