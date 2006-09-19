@@ -225,9 +225,11 @@ class LineDisplay
         Ncurses.attrset(Ncurses.COLOR_PAIR((line_i%2 == 0) ? 0 : @grey_color))
       a = l.values_at(*col_show)
       a.slice!(0, @st_col)
-      Ncurses.attron(Ncurses::A_REVERSE) if l.has_match
-      Ncurses.mvaddstr(sline, 0, "%*s " % [linec, line_i])
-      Ncurses.attroff(Ncurses::A_REVERSE) if l.has_match
+      if @line
+        Ncurses.attron(Ncurses::A_REVERSE) if l.has_match
+        Ncurses.mvaddstr(sline, 0, "%*s " % [linec, line_i])
+        Ncurses.attroff(Ncurses::A_REVERSE) if l.has_match
+      end
       if l.has_match
         # Lines has search matches, display a field at a time
         ms = l.matches_at(*col_show)
