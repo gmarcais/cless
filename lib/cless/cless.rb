@@ -294,7 +294,6 @@ class LineDisplay
   # read_line returns an array
   # [string, last_cursor_position_in_string, keycode_of_terminating_enter_key].
   # Complete the "when" clauses before including in your app!
-  ESCAPE = 27
   def read_line(y, x,
                 window     = Ncurses.stdscr,
                 max_len    = (window.getmaxx - x - 1),
@@ -319,7 +318,7 @@ class LineDisplay
         string = string[0...([0, cursor_pos-1].max)] + string[cursor_pos..-1]
         cursor_pos = [0, cursor_pos-1].max
         window.mvaddstr(y, x+string.length, " ")
-      when ESCAPE
+      when ?\e          # ESCAPE
         return "", 0, ch
       when " "[0]..255 # remaining printables
         if (cursor_pos < max_len)
