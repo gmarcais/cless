@@ -66,6 +66,7 @@ loop do
   end
   break unless again
 end
+opts = nil
 
 # Move around the file descriptor if not a tty!
 if !$stdout.tty?
@@ -90,7 +91,8 @@ ptr = begin
         exit(1)
       end
 trap("SIGTERM") { exit }
-
+trap("SIGINT") { exit }
+trap("SIGQUIT") { exit }
 
 # $log = File.open("log", "w")
 # $log.sync = true
