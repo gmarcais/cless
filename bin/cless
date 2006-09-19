@@ -79,17 +79,16 @@ if ARGV.empty? && $stdin.tty?
   exit(1)
 end
 if !$stdin.tty?
-  # Better way to get a file descriptor to reopen
-  # dup anyone?
   stdin = $stdin.dup
   $stdin.reopen($stdout)
 end
 
-if ARGV[0]
-  ptr = MappedFile.new(ARGV[0])
-else
-  ptr = MappedStream.new(stdin)
-end
+ptr = begin
+        ARGV[0] ? MappedFile.new(ARGV[0]) : MappedStream.new(stdin)
+      rescue ArgumentError => e
+        $stderr.puts("Mmap failed: #{e.message}")
+        exit(1)
+      end
 trap("SIGTERM") { exit }
 
 
