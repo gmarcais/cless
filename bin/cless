@@ -66,7 +66,6 @@ loop do
   end
   break unless again
 end
-opts = nil
 
 # Move around the file descriptor if not a tty!
 if !$stdout.tty?
@@ -90,6 +89,7 @@ ptr = begin
         $stderr.puts("Mmap failed: #{e.message}")
         exit(1)
       end
+opts = nil
 trap("SIGTERM") { exit }
 trap("SIGINT") { exit }
 trap("SIGQUIT") { exit }
