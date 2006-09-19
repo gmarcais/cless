@@ -11,6 +11,7 @@ options = {
   :grey => false,
   :grey_color => 1,
   :hide => [],
+  :tmp_dir => Dir.tmpdir,
 }
 onoff = proc { |k| "(" + (options[k] ? "on" : "off") + ")" }
 
@@ -34,6 +35,10 @@ loop do
     opts.on("--color COLOR", Integer, "Grey color " +
               "(#{options[:grey_color]})") { |v|
       options[:grey_color] = v
+    }
+    opts.on("-T", "--tmp-dir DIR", "Temporary directory " +
+              "(#{options[:tmp_dir]})") { |v|
+      options[:tmp_dir] = v
     }
     opts.on("-h", "--hide COLUMNS", 
             "Comma separated list of columns to hide") { |v|
@@ -84,7 +89,7 @@ if !$stdin.tty?
 end
 
 ptr = begin
-        ARGV[0] ? MappedFile.new(ARGV[0]) : MappedStream.new(stdin)
+        ARGV[0] ? MappedFile.new(ARGV[0]) : MappedStream.new(stdin, options)
       rescue ArgumentError => e
         $stderr.puts("Mmap failed: #{e.message}")
         exit(1)
@@ -93,9 +98,6 @@ opts = nil
 trap("SIGTERM") { exit }
 trap("SIGINT") { exit }
 trap("SIGQUIT") { exit }
-
-# $log = File.open("log", "w")
-# $log.sync = true
 
 begin
   Curses.new { |curses|

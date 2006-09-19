@@ -341,6 +341,7 @@ end
 class MappedStream
   DEFAULTS = {
     :buf_size => 64*1024,
+    :tmp_dir => Dir.tmpdir,
   }
   attr_reader :ptr, :more
   def initialize(fd, args = {})
@@ -352,7 +353,7 @@ class MappedStream
     DEFAULTS.each { |k, v|
       instance_variable_set("@#{k}", args[k] || v)
     }
-    @tfd = Tempfile.new(Process.pid.to_s)
+    @tfd = Tempfile.new(Process.pid.to_s, @tmp_dir)
     @ptr = Mmap.new(@tfd.path, "w")
     @ptr.extend(10 * @buf_size)
 
