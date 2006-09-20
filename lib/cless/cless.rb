@@ -11,8 +11,81 @@ class Array
   end
 end
 
+class Attr
+  NAME2COLORS = {
+    "black" => Ncurses::COLOR_BLACK,
+    "red" =>  Ncurses::COLOR_RED,
+    "green" => Ncurses::COLOR_GREEN,
+    "yellow" =>  Ncurses::COLOR_YELLOW,
+    "blue" =>  Ncurses::COLOR_BLUE,
+    "magenta" => Ncurses::COLOR_MAGENTA,
+    "white" => Ncurses::COLOR_WHITE,
+  }
+  COLORS = NAME2COLORS.values.sort
+  NAME2ATTR = {
+    "normal" => Ncurses::A_NORMAL,
+    "standout" => Ncurses::A_STANDOUT,
+    "underline" => Ncurses::A_UNDERLINE,
+    "dim" => Ncurses::A_DIM,
+    "bold" => Ncurses::A_BOLD,
+  }
+  ATTRS = NAME2ATTR.values.sort
+
+  DEFAULTS = {
+    :background => NAME2COLORS["white"],
+    :foreground => NAME2COLORS["black"],
+    :attribute => NAME2ATTR["normal"],
+  }
+
+  def initialize(args = {})       # background, foreground, attribute
+    # Sanitize
+    DEFAULTS.each { |k, v|
+      instance_variable_set("@#{k}", args[k].nil? ? v : args[k])
+    }
+    @background = check_color(@background)
+    @foreground = check_color(@background)
+    @attribute = check_attribute(@attribute)
+    update_pair
+  end
+
+  def next_background; @background = inc(@background, COLORS); update_pair; end
+  def next_foreground; @foreground = inc(@foreground, COLORS); update_pair; end
+  def next_attribute; @attribute = inc(@attribute, ATTRS); end
+
+  def set; Ncurses.attrset(@attribute | Ncurses.COLOR_PAIR(1)); end
+  def reset; Ncurses.attrset(Ncurses::A_NORMAL); end
+
+  def names
+    r = {}
+    r[:foreground] = (NAME2COLORS.find { |n, v| v == @foreground } || ["black"])[0]
+    r[:background] = (NAME2COLORS.find { |n, v| v == @background } || ["white"])[0]
+    r[:attribute] = (NAME2ATTR.find { |n, v| v == @attribute } || ["normal"])[0]
+    r
+  end
+
+  private
+  def check(c, hash, ary)
+    case c
+    when Integer
+      ary.include?(c) ? c : ary.first
+    when String
+      (v = hash[c.downcase.strip]) ? v : ary.first
+    else
+      ary.first
+    end
+  end
+  def check_color(c); check(c, NAME2COLORS, COLORS); end
+  def check_attribute(a); check(a, NAME2ATTR, ATTRS); end
+
+  def inc(c, ary); ary[((ary.index(c) || 0)+1) % ary.size]; end
+
+  def update_pair
+    Ncurses.init_pair(1, @foreground, @background)
+  end
+end
+
 class Curses
-  def initialize
+  def initialize(args = {})
     Ncurses.initscr
     @started = true
     begin
@@ -24,34 +97,11 @@ class Curses
       Ncurses.stdscr.immedok(false)
       Ncurses.keypad(Ncurses.stdscr, true)
 
-      @basic_colors= [Ncurses::COLOR_BLACK, Ncurses::COLOR_RED, 
-        Ncurses::COLOR_GREEN, Ncurses::COLOR_YELLOW, 
-        Ncurses::COLOR_BLUE, Ncurses::COLOR_MAGENTA, Ncurses::COLOR_WHITE]
-
-      attr, pair, opts = [], [], []
-      Ncurses.attr_get(attr, pair, opts)
-      # Create our pair, with same foreground as current but different background
-      f, b = [], []
-      Ncurses.pair_content(0, f, b)
-      @basic_colors.each_with_index do |c, i|
-        Ncurses.init_pair(i + 1, f[0], c)
-      end
-      @basic_colors.each_with_index do |c, i|
-        Ncurses.init_pair(@basic_colors.size + i + 1, c, b[0])
-      end
 
       yield self
     ensure
       @started && Ncurses.endwin
     end
-  end
-
-  def max_pair; 2*@basic_colors.size + 1; end
-
-  def next_pair(i)
-    i = (i+1) % max_pair
-    i = 1 if i == 0
-    i
   end
 end
 
@@ -89,15 +139,14 @@ class Manager
       when Ncurses::KEY_END: @data.goto_end; break
       when Ncurses::KEY_LEFT: @display.st_col -= 1; break
       when Ncurses::KEY_RIGHT: @display.st_col += 1; break
-      when Ncurses::KEY_F2
-        @display.grey_color = @curses.next_pair(@display.grey_color)
-        status = "New color: #{@display.grey_color}"
-        break
       when ?g: @display.grey = !@display.grey; break
       when ?c: @display.column = !@display.column; break
       when ?l: @display.line = !@display.line; break
       when ?h: hide_columns; break
       when ?H: hide_columns(:show); break
+      when ?1: @display.next_foreground; status = color_descr; break
+      when ?2: @display.next_background; status = color_descr; break
+      when ?3: @display.next_attribute; status = color_descr; break
       when ?/: status = search(:forward); break
       when ??: status = search(:backward); break
       when ?n: status = repeat_search(:forward); break
@@ -145,6 +194,12 @@ class Manager
     @data.repeat_search(dir) or return "Pattern not found!"
     return nil
   end
+
+  def color_descr
+    descr = @display.attr_names
+    "Color: F %s B %s A %s" % 
+      [descr[:foreground] || "-", descr[:background] || "-", descr[:attribute] || "-"]
+  end
 end
 
 class LineDisplay
@@ -164,9 +219,15 @@ class LineDisplay
     @data = data
     @col_hide = nil
     @st_col = 0
+    @attr = Attr.new(args)
   end
 
   def nb_lines; Ncurses.stdscr.getmaxy - 1 - (@column ? 1 : 0); end
+
+  def next_foreground; @attr.next_foreground; end
+  def next_background; @attr.next_background; end
+  def next_attribute; @attr.next_attribute; end
+  def attr_names; @attr.names; end
 
   def col_hide_clear; @col_hide = nil; end
   def col_hide(*args)
@@ -221,8 +282,7 @@ class LineDisplay
     line_i = @data.line + 1
     len -= linec + 1 if @line
     @data.lines(lines) { |l|
-      @grey and 
-        Ncurses.attrset(Ncurses.COLOR_PAIR((line_i%2 == 0) ? 0 : @grey_color))
+      @grey and ((line_i%2 == 0) ? @attr.reset : @attr.set)
       a = l.values_at(*col_show)
       a.slice!(0, @st_col)
       if @line
