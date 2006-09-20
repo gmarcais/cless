@@ -16,7 +16,7 @@ options = {
   :tmp_dir => Dir.tmpdir,
 }
 onoff = proc { |k| "(" + (options[k] ? "on" : "off") + ")" }
-val = proc { |k| "(" + options[k].to_s + ")" }
+val = proc { |k| "(" + (options[k] || "none").to_s + ")" }
 
 opts = nil
 loop do
@@ -36,13 +36,13 @@ loop do
       options[:grey] = v
     }
     opts.on("--foreground COLOR", "Foreground color for hilight #{val[:foreground]}") { |v|
-      opts[:foreground] = v
+      options[:foreground] = v
     }
     opts.on("--background COLOR", "Background color for hilight #{val[:background]}") { |v|
-      opts[:background] = v
+      options[:background] = v
     }
     opts.on("--attribute ATTR", "Attribute for hilight #{val[:attribute]}") { |v|
-      opts[:attribute] = v
+      options[:attribute] = v
     }
     opts.on("-T", "--tmp-dir DIR", "Temporary directory #{val[:tmp_dir]}") { |v|
       options[:tmp_dir] = v

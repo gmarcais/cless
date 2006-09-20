@@ -43,7 +43,7 @@ class Attr
       instance_variable_set("@#{k}", args[k].nil? ? v : args[k])
     }
     @background = check_color(@background)
-    @foreground = check_color(@background)
+    @foreground = check_color(@foreground)
     @attribute = check_attribute(@attribute)
     update_pair
   end
@@ -52,7 +52,7 @@ class Attr
   def next_foreground; @foreground = inc(@foreground, COLORS); update_pair; end
   def next_attribute; @attribute = inc(@attribute, ATTRS); end
 
-  def set; Ncurses.attrset(@attribute | Ncurses.COLOR_PAIR(1)); end
+  def set; Ncurses.attrset(@attribute | @pair); end
   def reset; Ncurses.attrset(Ncurses::A_NORMAL); end
 
   def names
@@ -80,7 +80,12 @@ class Attr
   def inc(c, ary); ary[((ary.index(c) || 0)+1) % ary.size]; end
 
   def update_pair
-    Ncurses.init_pair(1, @foreground, @background)
+    if @foreground && @background
+      Ncurses.init_pair(1, @foreground, @background)
+      @pair = Ncurses.COLOR_PAIR(1)
+    else
+      @pair = Ncurses.COLOR_PAIR(0)
+    end
   end
 end
 
