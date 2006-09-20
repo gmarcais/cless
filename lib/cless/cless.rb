@@ -274,6 +274,11 @@ class LineDisplay
     sizes.slice!(0, @st_col)
     linec = (@data.line + lines).to_s.size
     format = "%*s " * sizes.size
+
+    i = 0
+    sline = @column ? 1 : 0
+    line_i = @data.line + 1
+    len -= linec + 1 if @line
     if @column
       sizes.max_update(cheader.collect { |x| x.size })
       Ncurses.addstr(" " * (linec + 1)) if @line
@@ -283,10 +288,6 @@ class LineDisplay
       Ncurses.addstr(s)
     end
 
-    i = 0
-    sline = @column ? 1 : 0
-    line_i = @data.line + 1
-    len -= linec + 1 if @line
     @data.lines(lines) { |l|
       @grey and ((line_i%2 == 0) ? @attr.reset : @attr.set)
       a = l.values_at(*col_show)
