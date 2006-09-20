@@ -13,6 +13,7 @@ end
 
 class Attr
   NAME2COLORS = {
+    "none" => :none,
     "black" => Ncurses::COLOR_BLACK,
     "red" =>  Ncurses::COLOR_RED,
     "green" => Ncurses::COLOR_GREEN,
@@ -21,7 +22,7 @@ class Attr
     "magenta" => Ncurses::COLOR_MAGENTA,
     "white" => Ncurses::COLOR_WHITE,
   }
-  COLORS = NAME2COLORS.values.sort
+  COLORS = NAME2COLORS.values
   NAME2ATTR = {
     "normal" => Ncurses::A_NORMAL,
     "standout" => Ncurses::A_STANDOUT,
@@ -29,12 +30,12 @@ class Attr
     "dim" => Ncurses::A_DIM,
     "bold" => Ncurses::A_BOLD,
   }
-  ATTRS = NAME2ATTR.values.sort
+  ATTRS = NAME2ATTR.values
 
   DEFAULTS = {
-    :background => NAME2COLORS["white"],
-    :foreground => NAME2COLORS["black"],
-    :attribute => NAME2ATTR["normal"],
+    :background => NAME2COLORS["none"],
+    :foreground => NAME2COLORS["none"],
+    :attribute => NAME2ATTR["bold"],
   }
 
   def initialize(args = {})       # background, foreground, attribute
@@ -80,11 +81,11 @@ class Attr
   def inc(c, ary); ary[((ary.index(c) || 0)+1) % ary.size]; end
 
   def update_pair
-    if @foreground && @background
+    if @foreground != :none && @background != :none
       Ncurses.init_pair(1, @foreground, @background)
       @pair = Ncurses.COLOR_PAIR(1)
     else
-      @pair = Ncurses.COLOR_PAIR(0)
+      @pair = 0
     end
   end
 end

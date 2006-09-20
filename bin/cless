@@ -9,9 +9,9 @@ options = {
   :column => false,
   :line => false,
   :grey => false,
-  :foreground => "black",
-  :background => "white",
-  :attribute => "normal",
+  :foreground => "none",
+  :background => "none",
+  :attribute => "bold",
   :hide => [],
   :tmp_dir => Dir.tmpdir,
 }
