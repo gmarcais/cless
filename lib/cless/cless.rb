@@ -148,8 +148,8 @@ class Manager
       when ?g: @display.grey = !@display.grey; break
       when ?c: @display.column = !@display.column; break
       when ?l: @display.line = !@display.line; break
-      when ?h: hide_columns; break
-      when ?H: hide_columns(:show); break
+      when ?h: status = hide_columns; break
+      when ?H: status = hide_columns(:show); break
       when ?0: @display.col_zero = !@display.col_zero; break
       when ?1: @display.next_foreground; status = color_descr; break
       when ?2: @display.next_background; status = color_descr; break
@@ -169,19 +169,21 @@ class Manager
   end
 
   def hide_columns(show = false)
-    s = @display.prompt(show ? "Show: " : "Hide: ")
+    s = @display.prompt(show ? "Show: " : "Hide: ") or return "Canceled"
     a = s.split.collect { |x| x.to_i }
-    if a[0] && a[0] <= 0
+    if a.empty?
       @display.col_hide_clear
     else
       show ? @display.col_show(*a) : @display.col_hide(*a)
     end
+    "Hidden: #{@display.col_hidden.join(" ")}"
   end
 
   # Return a status if an error occur, otherwise, returns nil
   def search(dir = :forward)
     s = @display.prompt("%s Search: " % 
                           [(dir == :forward) ? "Forward" : "Backward"])
+    s or return "Canceled"
     if s =~ /^\s*$/
       @data.search_clear
     else
@@ -192,7 +194,7 @@ class Manager
         return "Bad regexp: #{e.message}"
       end
     end
-    return nil
+    nil
   end
 
   # Return a status if an error occur, otherwise, returns nil
@@ -248,7 +250,12 @@ class LineDisplay
     @col_hide.uniq!
     @col_hide.sort!
   end
-  
+
+  def col_hidden
+    return [] unless @col_hide
+    @col_zero ? @col_hide : @col_hide.collect { |x| x + 1 }
+  end
+
   def col_show(*args) 
     inc = @col_zero ? 0 : 1
     @col_hide and @col_hide -= args.collect { |x| x - inc }
@@ -366,9 +373,9 @@ class LineDisplay
     len = stdscr.getmaxx
     Ncurses.attrset(Ncurses.COLOR_PAIR(0))
     Ncurses.mvaddstr(stdscr.getmaxy-1, 0, ps.ljust(len)[0, len])
-    s = read_line(stdscr.getmaxy-1, ps.length)[0]
+    s, pos, key = read_line(stdscr.getmaxy-1, ps.length)
     Ncurses.mvaddstr(stdscr.getmaxy-1, 0, " " * len)
-    s
+    return (key == ?\e) ? nil : s
   end
 
   # read_line returns an array
