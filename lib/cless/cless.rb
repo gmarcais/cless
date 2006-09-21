@@ -150,6 +150,7 @@ class Manager
       when ?l: @display.line = !@display.line; break
       when ?h: hide_columns; break
       when ?H: hide_columns(:show); break
+      when ?0: @display.col_zero = !@display.col_zero; break
       when ?1: @display.next_foreground; status = color_descr; break
       when ?2: @display.next_background; status = color_descr; break
       when ?3: @display.next_attribute; status = color_descr; break
@@ -213,6 +214,7 @@ class LineDisplay
     :grey => true,          # Wether to hilight every other line
     :grey_color => 1,
     :column => false,           # Wether to display column number
+    :col_zero => false,         # 0-based column numbering
     :line => false,             # Wether to display line number
   }
   attr_accessor *DEFAULTS.keys
@@ -235,9 +237,12 @@ class LineDisplay
   def next_attribute; @attr.next_attribute; end
   def attr_names; @attr.names; end
 
+  # col_hide and col_show respect the flag col_zero. I.e. the index of the
+  # column to pass is 0-based or 1-based depending on col_zero
   def col_hide_clear; @col_hide = nil; end
   def col_hide(*args)
-    args = args.collect { |x| x - 1 }
+    inc = @col_zero ? 0 : 1
+    args = args.collect { |x| x - inc }
     @col_hide ||= []
     @col_hide.push(*args)
     @col_hide.uniq!
@@ -245,7 +250,8 @@ class LineDisplay
   end
   
   def col_show(*args) 
-    @col_hide and @col_hide -= args.collect { |x| x - 1 }
+    inc = @col_zero ? 0 : 1
+    @col_hide and @col_hide -= args.collect { |x| x - inc }
   end
 
   def st_col; @st_col; end
@@ -256,37 +262,14 @@ class LineDisplay
   end
 
   def refresh
-    len = Ncurses.stdscr.getmaxx
-    lines = nb_lines
-    sizes = @data.sizes.dup
-
     Ncurses.move(0, 0)
     Ncurses.attrset(Ncurses.COLOR_PAIR(0))
-    col_show = (0..(sizes.size-1)).to_a
-    col_show -= @col_hide if @col_hide
-    if @column
-      cheader = (1..sizes.size).to_a
-      cheader = cheader.values_at(*col_show)
-      cheader.slice!(0, @st_col)
-      cheader.collect! { |x| x.to_s } 
-    end
-    sizes = sizes.values_at(*col_show)
-    sizes.slice!(0, @st_col)
-    linec = (@data.line + lines).to_s.size
-    format = "%*s " * sizes.size
+    col_show, sizes, len, lines, linec, format = refresh_prepare
 
     i = 0
     sline = @column ? 1 : 0
     line_i = @data.line + 1
-    len -= linec + 1 if @line
-    if @column
-      sizes.max_update(cheader.collect { |x| x.size })
-      Ncurses.addstr(" " * (linec + 1)) if @line
-      i = -1
-      cheader.collect! { |x| i += 1; x.center(sizes[i]) }
-      s = (format % sizes.zip(cheader).flatten).ljust(len)[0, len]
-      Ncurses.addstr(s)
-    end
+    refresh_column_headers(sizes, format, col_show, len, linec) if @column
 
     @data.lines(lines) { |l|
       @grey and ((line_i%2 == 0) ? @attr.reset : @attr.set)
@@ -335,6 +318,34 @@ class LineDisplay
     Ncurses.clrtobot
   ensure
     Ncurses.refresh
+  end
+
+  # Modifies sizes
+  # linec: size of line number column
+  def refresh_column_headers(sizes, format, col_show, len, linec)
+    inc = (@col_zero) ? 0 : 1
+    cheader = col_show.slice((@st_col)..-1).collect { |x| (x + inc).to_s }
+    sizes.max_update(cheader.collect { |x| x.size })
+    Ncurses.addstr(" " * (linec + 1)) if @line
+    i = -1
+    cheader.collect! { |x| i += 1; x.center(sizes[i]) }
+    s = (format % sizes.zip(cheader).flatten).ljust(len)[0, len]
+    Ncurses.addstr(s)
+  end
+
+  def refresh_prepare
+    lines = nb_lines
+    len = Ncurses.stdscr.getmaxx
+    sizes = @data.sizes.dup
+    col_show = (0..(sizes.size-1)).to_a
+    col_show -= @col_hide if @col_hide
+    sizes = sizes.values_at(*col_show)
+    sizes.slice!(0, @st_col)
+    linec = (@data.line + lines).to_s.size if @line
+    len -= linec + 1 if @line
+    format = "%*s " * sizes.size
+
+    return col_show, sizes, len, lines, linec, format
   end
 
   def wait_status(status)

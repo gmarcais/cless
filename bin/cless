@@ -7,6 +7,7 @@ Version = [0, 1, 2]
 
 options = {
   :column => false,
+  :col_zero => false,
   :line => false,
   :grey => false,
   :foreground => "none",
@@ -28,6 +29,10 @@ loop do
     
     opts.on("--[no-]column", "Display column header #{onoff[:column]}") { |v|
       options[:column] = v
+    }
+    opts.on("--[no-]column-zero", 
+            "0-based numbering of column #{onoff[:col_zero]}") { |v|
+      options[:col_zero] = v
     }
     opts.on("--[no-]line", "Display line number #{onoff[:line]}") { |v|
       options[:line] = v
