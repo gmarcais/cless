@@ -264,7 +264,7 @@ class LineDisplay
   def st_col; @st_col; end
 
   def st_col=(n)
-    return if n < 0
+    return @st_col if n < 0 || n > @data.sizes.size
     @st_col = n
   end
 
