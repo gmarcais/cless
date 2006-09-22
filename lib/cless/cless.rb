@@ -158,6 +158,7 @@ class Manager
       when ??: status = search(:backward); break
       when ?n: status = repeat_search(:forward); break
       when ?p: status = repeat_search(:backward); break
+      when ?s: status = save_file; break
       when Ncurses::KEY_RESIZE: break
       when ?q: return nil
       else 
@@ -208,6 +209,29 @@ class Manager
     descr = @display.attr_names
     "Color: F %s B %s A %s" % 
       [descr[:foreground] || "-", descr[:background] || "-", descr[:attribute] || "-"]
+  end
+
+  def save_file
+    s = @display.prompt("Save to: ")
+    return "Canceled" if !s || s.empty?
+    begin
+      File.link(@data.file_path, s)
+      return "Hard linked"
+    rescue Errno::EXDEV => e
+    rescue Exception => e
+      return "Error: #{e.message}"
+    end
+
+    # Got here, hard link failed. Copy by hand.
+    nb_bytes = nil
+    begin
+      File.open(s, File::WRONLY|File::CREAT|File::EXCL) do |fd|
+        nb_bytes = @data.write_to(fd)
+      end
+    rescue Exception => e
+      return "Error: #{e.message}"
+    end
+    "Wrote #{nb_bytes} bytes"
   end
 end
 
@@ -451,6 +475,8 @@ class MappedStream
     end
   end
 
+  def file_path; @tfd.path; end
+
   def munmap
     @ptr.munmap
     @tfd.close!
@@ -491,9 +517,12 @@ class MappedStream
 end
 
 class MappedFile
+  attr_reader :file_path
+
   def initialize(fname)
     @ptr = Mmap.new(fname)
-    @line = nil
+    @lines = nil
+    @file_path = fname
 
     if block_given?
       begin
@@ -556,8 +585,18 @@ class MapData
     @pattern = nil      # search pattern
   end
 
-  def debug
-    [@line, @line2, @column, @coff, @off, @off2, "s", @sizes].flatten.join(" ")
+  def file_path; @str.file_path; end
+  def write_to(fd)
+    @str.lines          # Make sure we have all the data
+    block = 64*1024
+
+    (@str.size / block).times do |i|
+      fd.syswrite(@str[i*block, block])
+    end
+    if (r = @str.size % block) > 0
+      fd.syswrite(@str[@str.size - r, r])
+    end
+    @str.size
   end
 
   # yield n lines with length len to be displayed
