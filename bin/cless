@@ -15,6 +15,7 @@ options = {
   :attribute => "bold",
   :hide => [],
   :tmp_dir => Dir.tmpdir,
+  :name_db => [],
 }
 onoff = proc { |k| "(" + (options[k] ? "on" : "off") + ")" }
 val = proc { |k| "(" + (options[k] || "none").to_s + ")" }
@@ -27,7 +28,7 @@ loop do
       "Column oriented less-like pager\n" +
       "Options: (default values in parentheses)"
     
-    opts.on("--[no-]column", "Display column header #{onoff[:column]}") { |v|
+    opts.on("--[no-]column", "Display column number #{onoff[:column]}") { |v|
       options[:column] = v
     }
     opts.on("--[no-]column-zero", 
@@ -40,6 +41,9 @@ loop do
     opts.on("--[no-]hilight", "Hilight every other line #{onoff[:grey]}") { |v|
       options[:grey] = v
     }
+    opts.on("--[no-]column-names", "Display column names") { |v|
+      options[:col_names] = v
+    }
     opts.on("--foreground COLOR", "Foreground color for hilight #{val[:foreground]}") { |v|
       options[:foreground] = v
     }
@@ -48,6 +52,9 @@ loop do
     }
     opts.on("--attribute ATTR", "Attribute for hilight #{val[:attribute]}") { |v|
       options[:attribute] = v
+    }
+    opts.on("--name-db DB", "Path of a column name db") { |v|
+      options[:name_db] << v
     }
     opts.on("-T", "--tmp-dir DIR", "Temporary directory #{val[:tmp_dir]}") { |v|
       options[:tmp_dir] = v
@@ -113,11 +120,15 @@ trap("SIGQUIT") { exit }
 
 begin
   Curses.new { |curses|
-
+    
+    db = NameDB.new(*options[:name_db])
     data = MapData.new(ptr)
     display = LineDisplay.new(data, options)
-    manager = Manager.new(data, display, curses)
+    manager = Manager.new(data, display, curses, db)
     
+    if f = ARGV[0]
+      display.col_headers = db.find(f)
+    end
     display.col_hide(*options[:hide])
 
     manager.main_loop

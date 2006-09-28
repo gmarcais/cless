@@ -8,10 +8,11 @@ require 'cless/display'
 require 'cless/namedb'
 
 class Manager
-  def initialize(data, display, curses)
+  def initialize(data, display, curses, db)
     @data = data
     @display = display
     @curses = curses
+    @db = db
     @done = false
     @status = ""
   end
@@ -55,6 +56,8 @@ class Manager
       when ?n: status = repeat_search(:forward); break
       when ?p: status = repeat_search(:backward); break
       when ?s: status = save_file; break
+      when ?t: status = show_hide_headers; break
+      when ?T: status = change_headers; break
       when Ncurses::KEY_RESIZE: break
       when ?q: return nil
       else 
@@ -74,6 +77,19 @@ class Manager
       show ? @display.col_show(*a) : @display.col_hide(*a)
     end
     "Hidden: #{@display.col_hidden.join(" ")}"
+  end
+
+  def show_hide_headers
+    return "No names defined" if !@display.col_names && !@display.col_headers
+    @display.col_names = !@display.col_names
+    return nil
+  end
+
+  def change_headers
+    s = @display.prompt("Pattern: ") or return "Canceled"
+    a = @db.find(s.strip) or return "Pattern not found"
+    @display.col_headers = a
+    nil
   end
 
   # Return a status if an error occur, otherwise, returns nil
