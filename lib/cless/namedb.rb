@@ -5,7 +5,7 @@ class NameDB
   end
 
   def parse_file(name)
-    File.open(name) do |fd|
+    File.open(File.expand_path(name)) do |fd|
       fd.each_line do |l|
         a = l.split
         n = a.shift
@@ -13,8 +13,6 @@ class NameDB
       end
     end
     true
-  rescue => e
-    return "Error db #{name}: #{e.message}"
   end
 
   def find(name)

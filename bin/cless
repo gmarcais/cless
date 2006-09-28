@@ -118,10 +118,18 @@ trap("SIGTERM") { exit }
 trap("SIGINT") { exit }
 trap("SIGQUIT") { exit }
 
+db = NameDB.new
+options[:name_db].each do |f| 
+  begin
+    db.parse_file(f)
+  rescue => e
+    $stderr.puts("Problem with db #{f}: #{e.message}")
+  end
+end
+
 begin
   Curses.new { |curses|
     
-    db = NameDB.new(*options[:name_db])
     data = MapData.new(ptr)
     display = LineDisplay.new(data, options)
     manager = Manager.new(data, display, curses, db)
