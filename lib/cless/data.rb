@@ -248,6 +248,13 @@ class MapData
     cache_forward(n - @cache.size) if @cache.size < n
   end
 
+  def clear_cache
+    @cache.clear
+    @line2 = @line
+    @off2 = @off
+    @sizes.clear
+  end
+
   private
   def search_next(dir = :forward)
     if dir == :forward

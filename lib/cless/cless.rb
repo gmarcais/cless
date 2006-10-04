@@ -58,6 +58,7 @@ class Manager
       when ?s: status = save_file; break
       when ?t: status = show_hide_headers; break
       when ?T: status = change_headers; break
+      when ?r: @data.clear_cache; break
       when Ncurses::KEY_RESIZE: break
       when ?q: return nil
       else 
