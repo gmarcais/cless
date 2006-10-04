@@ -242,21 +242,6 @@ class MapData
     end
   end
 
-  def shift_column(delta)
-    return if delta == 0
-    if delta > 0
-      if @column < @sizes.size
-        @coff += @sizes[@column] + 1
-        @column += 1
-      end
-    else
-      if @column > 0
-        @column -= 1
-        @coff -= @sizes[@column] + 1
-      end
-    end
-  end
-
   def cache_fill(n)
     cache_forward(n - @cache.size) if @cache.size < n
   end
