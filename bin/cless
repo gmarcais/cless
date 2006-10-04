@@ -14,6 +14,7 @@ options = {
   :background => "none",
   :attribute => "bold",
   :names => nil,
+  :formats => [],
   :hide => [],
   :tmp_dir => Dir.tmpdir,
   :name_db => [],
@@ -70,6 +71,9 @@ loop do
     }
     opts.on("--name-db DB", "Path of a column name db") { |v|
       options[:name_db] << v
+    }
+    opts.on("--format FORMAT", "Format for a column") { |v|
+      options[:formats] << v
     }
     opts.on("-T", "--tmp-dir DIR", "Temporary directory #{val[:tmp_dir]}") { |v|
       options[:tmp_dir] = v
@@ -156,6 +160,9 @@ begin
       display.col_headers = options[:names]
     end
     display.col_hide(*options[:hide])
+    unless options[:formats].empty?
+      options[:formats].each { |fmt| manager.column_format(fmt) }
+    end
 
     manager.main_loop
   }

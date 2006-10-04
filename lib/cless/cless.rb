@@ -43,7 +43,7 @@ class Manager
       when Ncurses::KEY_LEFT: @display.st_col -= 1; break
       when Ncurses::KEY_RIGHT: @display.st_col += 1; break
       when ?f: status = goto_position; break
-      when ?%: status = column_format; break
+      when ?%: status = column_format_prompt; break
       when ?g: @display.grey = !@display.grey; break
       when ?c: @display.column = !@display.column; break
       when ?l: @display.line = !@display.line; break
@@ -165,9 +165,13 @@ class Manager
     nil
   end
 
-  def column_format
+  def column_format_prompt
     s = @display.prompt("Format: ") or return "Canceled"
     s.strip!
+    column_format(s)
+  end
+  
+  def column_format(s)
     cols, fmt = s.split(/:/, 2)
     inc = @display.col_zero ? 0 : 1
     if cols
