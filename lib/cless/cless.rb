@@ -42,6 +42,7 @@ class Manager
       when Ncurses::KEY_END: @data.goto_end; break
       when Ncurses::KEY_LEFT: @display.st_col -= 1; break
       when Ncurses::KEY_RIGHT: @display.st_col += 1; break
+      when ?f: status = goto_position; break
       when ?g: @display.grey = !@display.grey; break
       when ?c: @display.column = !@display.column; break
       when ?l: @display.line = !@display.line; break
@@ -145,5 +146,21 @@ class Manager
       return "Error: #{e.message}"
     end
     "Wrote #{nb_bytes} bytes"
+  end
+
+  def goto_position
+    s = @display.prompt("Goto: ") or return "Canceled"
+    s.strip!
+    if s[-1] == ?p || s[-1] == ?%
+      s.slice!(-1)
+      f = s.to_f
+      return "Invalid percentage" if f <= 0.0 || f > 100.0
+      @data.goto_percent(f)
+    else
+      i = s.to_i
+      return "Invalid line number" if i <= 0
+      @data.goto_line(i)
+    end
+    nil
   end
 end

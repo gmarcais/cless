@@ -174,6 +174,19 @@ class MapData
     scroll(-cache_size)
   end
 
+  def goto_line(nb)
+    delta = nb - @line - 1
+    scroll(delta)
+  end
+
+  def goto_percent(percent)
+    percent = 0.0 if percent < 0.0
+    percent = 100.0 if percent > 100.0
+    percent = percent.to_f
+    line = (@str.lines * percent / 100).round
+    goto_line(line)
+  end
+
   # Return true if pattern found, false otherwise
   def search(pattern, dir = :forward)
     search_clear if @pattern
