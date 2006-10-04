@@ -20,6 +20,12 @@ options = {
 onoff = proc { |k| "(" + (options[k] ? "on" : "off") + ")" }
 val = proc { |k| "(" + (options[k] || "none").to_s + ")" }
 
+CLESS_REGEXP = / \G(?:^|\s)     # anchor the match
+           (?: ["']((?>[^'"]*)(?>""[^'"]*)*)['"]          # find quoted fields
+               |                                  # ... or ...
+              ([^'"\s]*)  # unquoted fields
+             )/x
+
 opts = nil
 loop do
   again = false
@@ -61,7 +67,8 @@ loop do
     }
     opts.on("-h", "--hide COLUMNS", 
             "Comma separated list of columns to hide") { |v|
-      a = v.split(',').collect { |x| x.to_i }.delete_if { |x| x <= 0 }
+      a = v.split(/[,\s]+/).collect { |x| x.to_i }
+      a.delete_if { |x| x < 0 }
       options[:hide] += a
     }
     opts.on_tail("-v", "--version", "Show version and exit") {
@@ -75,7 +82,7 @@ loop do
   end
 
   if ENV["CLESS"]
-    args = ENV["CLESS"].split
+    args = ENV["CLESS"].split(CLESS_REGEXP).delete_if { |x| x.empty? }
     ENV["CLESS"] = nil
     again = true
   else
