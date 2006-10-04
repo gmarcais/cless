@@ -136,6 +136,7 @@ class MapData
     @cache = []
     @sizes = []
     @pattern = nil      # search pattern
+    @formats = nil      # formating strings. When not nil, a hash.
   end
 
   def file_path; @str.file_path; end
@@ -253,6 +254,37 @@ class MapData
     @sizes.clear
   end
 
+  FMT_LETTERS = "bcdEefGgiosuXx"
+  FMT_REGEXP = /(?:^|[^%])%[ \d#+*.-]*([#{FMT_LETTERS}])/;
+  FLOAT_PROC = proc { |x| x.to_f }
+  INT_PROC = proc { |x| x.to_i }
+  def set_format_column(fmt, *cols)
+    a = [fmt]
+    if fmt =~ FMT_REGEXP
+      case $1
+      when "b", "c", "d", "i", "o", "u", "X", "x": a << INT_PROC
+      when "E", "e", "f", "G", "g": a << FLOAT_PROC
+      end
+    end
+    @formats ||= {}
+    cols.each { |c| @formats[c] = a }
+    true
+  end
+
+  def unset_format_column(col)
+    return nil unless @formats
+    r = @formats.delete(col)
+    @formats = nil if @formats.empty?
+    r
+  end
+
+  def get_format_column(col)
+    return nil unless @formats
+    @formats[col]
+  end
+
+  def formatted_column_list; @formats ? @formats.keys : []; end
+
   private
   def search_next(dir = :forward)
     if dir == :forward
@@ -277,10 +309,20 @@ class MapData
     return true
   end
 
+  def reformat(nl)
+    @formats.each do |i, f|
+      s = nl[i] or next
+      fmt, proc = *f
+      s = proc[s] if proc
+      nl[i] = fmt % s rescue "###"
+    end
+  end
+
   def cache_forward(n)
     n.times do
       noff2 = @str.index("\n", @off2) or break
       nl = @str[@off2..(noff2-1)].split
+      reformat(nl) if @formats
       @sizes.max_update(nl.collect { |x| x.size })
       @cache << (l = Line.new(nl))
       l.match(@pattern) if @pattern
@@ -294,6 +336,7 @@ class MapData
       break if @off < 2
       noff = (@str.rindex("\n", @off-2) || -1) + 1
       nl = @str[noff..(@off-2)].split
+      reformat(nl) if @formats
       @sizes.max_update(nl.collect { |x| x.size })
       @cache.unshift(l = Line.new(nl))
       l.match(@pattern) if @pattern
