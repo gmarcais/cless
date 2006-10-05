@@ -5,7 +5,18 @@ require 'mmap'
 
 require 'cless/data'
 require 'cless/display'
-require 'cless/namedb'
+require 'cless/optionsdb'
+
+class String
+  def split_with_quotes(sep = '\s', q = '\'"')
+    r = / \G(?:^|[#{sep}])     # anchor the match
+           (?: [#{q}]((?>[^#{q}]*)(?>""[^#{q}]*)*)[#{q}] # find quoted fields
+               |                                  # ... or ...
+              ([^#{q}#{sep}]*)  # unquoted fields
+             )/x
+    self.split(r).delete_if { |x| x.empty? }
+  end
+end
 
 class Manager
   def initialize(data, display, curses, db)

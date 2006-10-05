@@ -23,17 +23,6 @@ options = {
 onoff = proc { |k| "(" + (options[k] ? "on" : "off") + ")" }
 val = proc { |k| "(" + (options[k] || "none").to_s + ")" }
 
-class String
-  def split_with_quotes(sep = "\\s", q = "\'\"")
-    r = / \G(?:^|[#{sep}])     # anchor the match
-           (?: [#{q}]((?>[^#{q}]*)(?>""[^#{q}]*)*)[#{q}] # find quoted fields
-               |                                  # ... or ...
-              ([^#{q}#{sep}]*)  # unquoted fields
-             )/x
-    self.split(r).delete_if { |x| x.empty? }
-  end
-end
-
 opts = nil
 loop do
   again = false
