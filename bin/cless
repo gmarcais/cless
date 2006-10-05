@@ -18,7 +18,7 @@ options = {
   :ignore => [],
   :hide => [],
   :tmp_dir => Dir.tmpdir,
-  :name_db => [],
+  :options_db => [],
 }
 onoff = proc { |k| "(" + (options[k] ? "on" : "off") + ")" }
 val = proc { |k| "(" + (options[k] || "none").to_s + ")" }
@@ -70,8 +70,8 @@ loop do
     opts.on("--names NAMES", "Comma separated list of column names") { |v|
       options[:names] = v.split_with_quotes("\s,")
     }
-    opts.on("--name-db DB", "Path of a column name db") { |v|
-      options[:name_db] << v
+    opts.on("--options-db DB", "Path of a options db") { |v|
+      options[:options_db] << v
     }
     opts.on("--format FORMAT", "Format for a column") { |v|
       options[:formats] << v
@@ -137,42 +137,43 @@ ptr = begin
         $stderr.puts("Mmap failed: #{e.message}")
         exit(1)
       end
-opts = nil
+
 trap("SIGTERM") { exit }
 trap("SIGINT") { exit }
 trap("SIGQUIT") { exit }
 
-db = NameDB.new
-options[:name_db].each do |f| 
+db = OptionsDB.new
+options[:options_db].each do |f| 
   begin
     db.parse_file(f)
   rescue => e
-    $stderr.puts("Problem with db #{f}: #{e.message}")
+    $stderr.puts("Error with db #{f}: #{e.message}")
+  end
+end
+if (f = ARGV[0])
+  if (a = db.find(f))
+    begin
+      opts.parse(a)
+    rescue => e
+      $stderr.puts("Error with options from db: #{e.message}")
+    end
   end
 end
 
 begin
-  Curses.new { |curses|
+  Curses.new do |curses|
     
     data = MapData.new(ptr)
     display = LineDisplay.new(data, options)
     manager = Manager.new(data, display, curses, db)
-    
-    if (f = ARGV[0]) && !options[:names]
-      display.col_headers = db.find(f)
-    elsif options[:names]
-      display.col_headers = options[:names]
-    end
+
+    display.col_headers = options[:names]
     display.col_hide(*options[:hide])
-    unless options[:formats].empty?
-      options[:formats].each { |fmt| manager.column_format(fmt) }
-    end
-    unless options[:ignore].empty?
-      options[:ignore].each { |pat| manager.ignore_line(pat) }
-    end
+    options[:formats].each { |fmt| manager.column_format(fmt) }
+    options[:ignore].each { |pat| manager.ignore_line(pat) }
 
     manager.main_loop
-  }
+  end
 ensure
   ptr.munmap
 end

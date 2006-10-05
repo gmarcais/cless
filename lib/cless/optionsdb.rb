@@ -1,4 +1,4 @@
-class NameDB
+class OptionsDB
   def initialize(*files)
     @names = {}
     files.each { |f| parse_file(f) }
@@ -7,7 +7,7 @@ class NameDB
   def parse_file(name)
     File.open(File.expand_path(name)) do |fd|
       fd.each_line do |l|
-        a = l.split
+        a = l.split_with_quotes
         n = a.shift
         @names[Regexp.new("#{Regexp.quote(n)}$")] = a if n
       end
