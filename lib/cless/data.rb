@@ -100,11 +100,20 @@ class MappedFile
   end
 end
 
+# Similar interface to MatchData. Return the entire string as being a match.
+class FieldMatch
+  def initialize(str); @str = str; end
+  def string; @str; end
+  def pre_match; ""; end
+  def post_match; ""; end
+  def [](i); (i == 0) ? @str : nil; end
+end
+
 class Line
   attr_reader :has_match
 
-  def initialize(a)
-    @a = a
+  def initialize(a, onl = nil)
+    @a, @onl = a, onl
     @m = []
     @has_match = false
   end
@@ -112,12 +121,18 @@ class Line
   def values_at(*args); @a.values_at(*args); end
   def matches_at(*args); @m.values_at(*args); end
 
+  # onl is the line before any formatting or transformation.
+  # If a field doesn't match pattern but old representation does,
+  # hilight entire field as a match.
   def match(pattern)
     does_match = false
     @a.each_with_index { |f, i|
       if m = f.match(pattern)
         does_match = true
         @m[i] = m
+      elsif @onl && @onl[i].match(pattern)
+        does_match = true
+        @m[i] = FieldMatch.new(f)
       end
     }
     @has_match = does_match
@@ -310,22 +325,29 @@ class MapData
   end
 
   def reformat(nl)
+    onl = nl.dup
     @formats.each do |i, f|
       s = nl[i] or next
       fmt, proc = *f
       s = proc[s] if proc
       nl[i] = fmt % s rescue "###"
     end
+    onl
+  end
+
+  def line_massage(str)
+    onl, nl = nil, str.split
+    onl = reformat(nl) if @formats
+    @sizes.max_update(nl.collect { |x| x.size })
+    l = Line.new(nl, onl)
+    l.match(@pattern) if @pattern
+    l
   end
 
   def cache_forward(n)
     n.times do
       noff2 = @str.index("\n", @off2) or break
-      nl = @str[@off2..(noff2-1)].split
-      reformat(nl) if @formats
-      @sizes.max_update(nl.collect { |x| x.size })
-      @cache << (l = Line.new(nl))
-      l.match(@pattern) if @pattern
+      @cache << line_massage(@str[@off2..(noff2-1)])
       @off2 = noff2 + 1
     end
     @line2 = @line + @cache.size
@@ -335,11 +357,7 @@ class MapData
     n.times do
       break if @off < 2
       noff = (@str.rindex("\n", @off-2) || -1) + 1
-      nl = @str[noff..(@off-2)].split
-      reformat(nl) if @formats
-      @sizes.max_update(nl.collect { |x| x.size })
-      @cache.unshift(l = Line.new(nl))
-      l.match(@pattern) if @pattern
+      @cache.unshift(line_massage(@str[noff..(@off-2)]))
       @off = noff
     end
     @line = @line2 - @cache.size
