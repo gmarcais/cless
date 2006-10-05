@@ -118,6 +118,9 @@ class Line
     @has_match = false
   end
 
+  def ignored; false; end
+  alias :ignored? :ignored
+
   def values_at(*args); @a.values_at(*args); end
   def matches_at(*args); @m.values_at(*args); end
 
@@ -141,6 +144,28 @@ class Line
   def clear_match; @has_match = false; @m.clear; end
 end
 
+class IgnoredLine
+  attr_reader :has_match, :str
+
+  def initialize(str)
+    @str = str
+    @has_match = false
+  end
+
+  def match(pattern)
+    if m = @str.match(pattern)
+      @m = m
+      @has_match = true
+    end
+  end
+
+  def matches; @m; end
+  def clear_match; @has_match = false; @m = nil; end
+
+  def ignored; true; end
+  alias :ignored? :ignored
+end
+
 class MapData
   attr_reader :sizes, :line, :line2, :pattern
   def initialize(str)
@@ -152,6 +177,7 @@ class MapData
     @sizes = []
     @pattern = nil      # search pattern
     @formats = nil      # formating strings. When not nil, a hash.
+    @ignores = nil      # line ignored index or pattern.
   end
 
   def file_path; @str.file_path; end
@@ -300,6 +326,25 @@ class MapData
 
   def formatted_column_list; @formats ? @formats.keys : []; end
 
+  def add_ignore(pattern)
+    return nil unless [Fixnum, Range, Regexp].any? { |c| c === pattern }
+    (@ignored ||= []) << pattern
+    true
+  end
+
+  def remove_ignore(pattern)
+    if pattern.nil?
+      r, @ignored = @ignored, nil
+      return r
+    end
+    return nil unless [Fixnum, Range, Regexp].any? { |c| c === pattern }
+    r = @ignored.delete(pattern)
+    @ignored = nil if @ignored.empty?
+    r
+  end
+
+  def ignore_pattern_list; @ignored ? @ignored : []; end
+
   private
   def search_next(dir = :forward)
     if dir == :forward
@@ -335,29 +380,47 @@ class MapData
     onl
   end
 
-  def line_massage(str)
-    onl, nl = nil, str.split
-    onl = reformat(nl) if @formats
-    @sizes.max_update(nl.collect { |x| x.size })
-    l = Line.new(nl, onl)
+  def line_ignore?(str, i)
+    @ignored.any? do |pat|
+      case pat
+      when Range, Fixnum: pat === i
+      when Regexp: pat === str
+      else false
+      end
+    end
+  end
+
+  # str = line
+  # i = line number
+  def line_massage(str, i)
+    if @ignored && line_ignore?(str, i)
+      l = IgnoredLine.new(str)
+    else
+      onl, nl = nil, str.split
+      onl = reformat(nl) if @formats
+      @sizes.max_update(nl.collect { |x| x.size })
+      l = Line.new(nl, onl)
+    end
     l.match(@pattern) if @pattern
     l
   end
 
   def cache_forward(n)
-    n.times do
+    lnb = @line + @cache.size
+    n.times do |i|
       noff2 = @str.index("\n", @off2) or break
-      @cache << line_massage(@str[@off2..(noff2-1)])
+      @cache << line_massage(@str[@off2..(noff2-1)], lnb + i)
       @off2 = noff2 + 1
     end
     @line2 = @line + @cache.size
   end
 
   def cache_backward(n)
-    n.times do
+    lnb = @line - 1
+    n.times do |i|
       break if @off < 2
       noff = (@str.rindex("\n", @off-2) || -1) + 1
-      @cache.unshift(line_massage(@str[noff..(@off-2)]))
+      @cache.unshift(line_massage(@str[noff..(@off-2)], lnb - i))
       @off = noff
     end
     @line = @line2 - @cache.size

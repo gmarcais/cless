@@ -44,6 +44,8 @@ class Manager
       when Ncurses::KEY_RIGHT: @display.st_col += 1; break
       when ?f: status = goto_position; break
       when ?%: status = column_format_prompt; break
+      when ?i: status = ignore_line_prompt; break
+      when ?I: status = ignore_line_remove_prompt; break
       when ?g: @display.grey = !@display.grey; break
       when ?c: @display.column = !@display.column; break
       when ?l: @display.line = !@display.line; break
@@ -186,5 +188,62 @@ class Manager
     end
     cols = @data.formatted_column_list.sort.collect { |x| x + inc }
     "Formatted: " + cols.join(" ")
+  end
+
+  def ignore_line_prompt
+    s = @display.prompt("Ignore: ") or return "Canceled"
+    s.strip!
+    ignore_line(s)
+  end
+
+  def ignore_line_list_each(str)
+    a = str.split_with_quotes('\s', '\/')
+    a.each do |spat|
+      opat = case spat
+             when /^(\d+)(?:\.{2}|-)(\d+)$/: ($1.to_i - 1)..($2.to_i - 1)
+             when /^(\d+)$/: $1.to_i - 1
+             else Regexp.new(spat) rescue nil
+             end
+      yield(spat, opat)
+    end
+  end
+
+  def ignore_line_list_display(a)
+    a.collect { |x|
+      o = case x
+          when Range: (x.begin + 1)..(x.end + 1)
+          when Fixnum: x + 1
+          else x
+          end
+      o.inspect
+    }
+  end
+
+  def ignore_line(str)
+    ignore_line_list_each(str) do |spat, opat|
+      if opat.nil? || !@data.add_ignore(opat)
+        return "Bad pattern #{spat}"
+      end
+    end
+    @data.clear_cache
+    "Ignored: " + ignore_line_list_display(@data.ignore_pattern_list).join(" ")
+  end
+
+  def ignore_line_remove_prompt
+    s = @display.prompt("Remove ignore: ") or return "Canceled"
+    s.strip!
+    ignore_line_remove(s)
+  end
+
+  def ignore_line_remove(str)
+    if !str || str.empty?
+      @data.remove_ignore(nil)
+    else
+      ignore_line_list_each(str) do |spat, opat|
+        opat && @data.remove_ignore(opat)
+      end
+    end
+    @data.clear_cache
+    "Ignored: " + ignore_line_list_display(@data.ignore_pattern_list).join(" ")
   end
 end

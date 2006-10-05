@@ -175,47 +175,88 @@ class LineDisplay
     i = 0
     sline = 0 + (@column ? 1 : 0) + (@col_names ? 1 : 0)
     line_i = @data.line + 1
-    refresh_column_headers(sizes, format, col_show, len, linec)
+    col_off = refresh_column_headers(sizes, format, col_show, len, linec)
 
     @data.lines(lines) { |l|
       @grey and ((line_i%2 == 0) ? @attr.reset : @attr.set)
-      a = l.values_at(*col_show)
-      a.slice!(0, @st_col)
       if @line
         Ncurses.attron(Ncurses::A_REVERSE) if l.has_match
+        Ncurses.attron(Ncurses::A_UNDERLINE) if IgnoredLine === l
         Ncurses.mvaddstr(sline, 0, "%*s " % [linec, line_i])
         Ncurses.attroff(Ncurses::A_REVERSE) if l.has_match
+        Ncurses.attroff(Ncurses::A_UNDERLINE) if IgnoredLine === l
       end
-      if l.has_match
-        # Lines has search matches, display a field at a time
-        ms = l.matches_at(*col_show)
-        ms.slice!(0, @st_col)
+      if Line === l
+        a = l.values_at(*col_show)
+        a.slice!(0, @st_col)
+        if l.has_match
+          # Lines has search matches, display a field at a time
+          ms = l.matches_at(*col_show)
+          ms.slice!(0, @st_col)
+          clen = len
+          sizes.zip(ms).each_with_index { |sm, i|
+            s, m = *sm
+            if m
+              Ncurses.addstr(str = (" " * (s - m.string.length))[0, clen])
+              clen -= str.length; break if clen <= 0
+              Ncurses.addstr(str = m.pre_match[0, clen])
+              clen -= str.length; break if clen <= 0
+              Ncurses.attron(Ncurses::A_REVERSE)
+              Ncurses.addstr(str = m[0][0, clen])
+              Ncurses.attroff(Ncurses::A_REVERSE)
+              clen -= str.length; break if clen <= 0
+              Ncurses.addstr(str = m.post_match[0, clen])
+              clen -= str.length; break if clen <= 0
+              Ncurses.addstr(str = " ")
+              clen -= str.length; break if clen <= 0            
+            else
+              Ncurses.addstr(str = ("%*s " % [s, a[i]])[0, clen])
+              clen -= str.length; break if clen <= 0
+            end
+          }
+          Ncurses.addstr(" " * clen) if clen > 0
+        else
+          # No match, display all at once
+          str = (format % sizes.zip(a).flatten).ljust(len)[0, len]
+          Ncurses.addstr(str)
+        end
+      else # l is an ignored line
+        off = col_off
         clen = len
-        sizes.zip(ms).each_with_index { |sm, i|
-          s, m = *sm
-          if m
-            Ncurses.addstr(str = (" " * (s - m.string.length))[0, clen])
-            clen -= str.length; break if clen <= 0
-            Ncurses.addstr(str = m.pre_match[0, clen])
-            clen -= str.length; break if clen <= 0
-            Ncurses.attron(Ncurses::A_REVERSE)
-            Ncurses.addstr(str = m[0][0, clen])
-            Ncurses.attroff(Ncurses::A_REVERSE)
-            clen -= str.length; break if clen <= 0
-            Ncurses.addstr(str = m.post_match[0, clen])
-            clen -= str.length; break if clen <= 0
-            Ncurses.addstr(str = " ")
-            clen -= str.length; break if clen <= 0            
+        if l.has_match
+          m = l.matches
+          s = m.pre_match
+          if s.length > off && clen > 0
+            Ncurses.addstr(str = s[off, clen])
+            clen -= str.length
+            off = 0
           else
-            Ncurses.addstr(str = ("%*s " % [s, a[i]])[0, clen])
-            clen -= str.length; break if clen <= 0
+            off -= s.length
           end
-        }
-        Ncurses.addstr(" " * clen) if clen > 0
-      else
-        # No match, display all at once
-        str = (format % sizes.zip(a).flatten).ljust(len)[0, len]
-        Ncurses.addstr(str)
+          s = m[0]
+          if s.length > off && clen > 0
+            Ncurses.attron(Ncurses::A_REVERSE)
+            Ncurses.addstr(str = s[off, clen])
+            Ncurses.attroff(Ncurses::A_REVERSE)
+            clen -= str.length
+            off = 0
+          else
+            off -= s.length
+          end
+          s = m.post_match
+          if s.length > off && clen > 0
+            Ncurses.addstr(str = s[off, clen])
+            clen -= str.length
+          end
+          Ncurses.addstr(" " * clen) if clen > 0
+        else
+          s = l.str
+          if s.length > off && clen > 0
+            Ncurses.addstr(str = s[off, len].ljust(clen)[0, clen])
+            clen -= str.length
+          end
+          Ncurses.addstr(" " * clen) if clen > 0
+        end
       end
       i += 1
       line_i += 1
@@ -228,16 +269,24 @@ class LineDisplay
 
   # Modifies sizes
   # linec: size of line number column
+  # Return byte column offset
   def refresh_column_headers(sizes, format, col_show, len, linec)
     if @column
       inc = (@col_zero) ? 0 : 1
-      cnumber = col_show.slice((@st_col)..-1).collect { |x| (x + inc).to_s }
+      cnumber = col_show.collect { |x| (x + inc).to_s }
+      cnumber.compact!
       sizes.max_update(cnumber.collect { |x| x.size })
+      cnumber.slice!(0, @st_col)
     end
     if @col_names
-      cnames = @col_headers.values_at(*col_show).compact.slice(@st_col..-1)
+      cnames = @col_headers.values_at(*col_show)
+      cnames.compact!
       sizes.max_update(cnames.collect { |s| s.size })
+      cnames.slice!(0, @st_col)
     end
+
+    col_off = sizes[0...@st_col].inject(0) { |a, x| a + x } + @st_col
+    sizes.slice!(0, @st_col)
 
     if @column
       Ncurses.addstr(" " * (linec + 1)) if @line
@@ -253,6 +302,7 @@ class LineDisplay
       s = (format % sizes.zip(cnames).flatten).ljust(len)[0, len]
       Ncurses.addstr(s)
     end
+    return col_off
   end
 
   def refresh_prepare
@@ -262,10 +312,10 @@ class LineDisplay
     col_show = (0..(sizes.size-1)).to_a
     col_show -= @col_hide if @col_hide
     sizes = sizes.values_at(*col_show)
-    sizes.slice!(0, @st_col)
     linec = (@data.line + lines).to_s.size if @line
     len -= linec + 1 if @line
-    format = "%*s " * sizes.size
+    nbf = [sizes.size - @st_col, 0].max
+    format = "%*s " * nbf
 
     return col_show, sizes, len, lines, linec, format
   end

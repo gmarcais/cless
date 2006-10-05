@@ -1,4 +1,4 @@
-#! /usr/bin/env ruby
+#! /genome4/raid/gus/bin32/ruby
 
 require 'cless/cless'
 require 'optparse'
@@ -15,6 +15,7 @@ options = {
   :attribute => "bold",
   :names => nil,
   :formats => [],
+  :ignore => [],
   :hide => [],
   :tmp_dir => Dir.tmpdir,
   :name_db => [],
@@ -23,11 +24,11 @@ onoff = proc { |k| "(" + (options[k] ? "on" : "off") + ")" }
 val = proc { |k| "(" + (options[k] || "none").to_s + ")" }
 
 class String
-  def split_with_quotes(sep = "\\s")
+  def split_with_quotes(sep = "\\s", q = "\'\"")
     r = / \G(?:^|[#{sep}])     # anchor the match
-           (?: ["']((?>[^'"]*)(?>""[^'"]*)*)['"]          # find quoted fields
+           (?: [#{q}]((?>[^#{q}]*)(?>""[^#{q}]*)*)[#{q}] # find quoted fields
                |                                  # ... or ...
-              ([^'"#{sep}]*)  # unquoted fields
+              ([^#{q}#{sep}]*)  # unquoted fields
              )/x
     self.split(r).delete_if { |x| x.empty? }
   end
@@ -74,6 +75,9 @@ loop do
     }
     opts.on("--format FORMAT", "Format for a column") { |v|
       options[:formats] << v
+    }
+    opts.on("--ignore PATTERN", "Line to ignore") { |v|
+      options[:ignore] << v
     }
     opts.on("-T", "--tmp-dir DIR", "Temporary directory #{val[:tmp_dir]}") { |v|
       options[:tmp_dir] = v
@@ -162,6 +166,9 @@ begin
     display.col_hide(*options[:hide])
     unless options[:formats].empty?
       options[:formats].each { |fmt| manager.column_format(fmt) }
+    end
+    unless options[:ignore].empty?
+      options[:ignore].each { |pat| manager.ignore_line(pat) }
     end
 
     manager.main_loop
