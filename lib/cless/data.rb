@@ -1,6 +1,25 @@
+module MappedCommon
+  def parse_header
+    a = []
+    i = 0
+    @ptr.each_line do |l|
+      break unless l =~ %r{^\s*#(.*)$}
+      i += 1
+      s = $1
+      if s =~ /^\s*cless:(.*)$/
+        s = $1.strip
+        a += s.split_with_quotes
+      end
+    end
+    return i, a
+  end
+end
+
 # Read from a stream. Write data to a temporary file, which is mmap.
 # Read more data from stream on a need basis, when some index  operation fail.
 class MappedStream
+  include MappedCommon
+
   DEFAULTS = {
     :buf_size => 64*1024,
     :tmp_dir => Dir.tmpdir,
@@ -70,6 +89,8 @@ class MappedStream
 end
 
 class MappedFile
+  include MappedCommon
+
   attr_reader :file_path
 
   def initialize(fname)

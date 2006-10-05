@@ -10,6 +10,7 @@ options = {
   :col_zero => false,
   :line => false,
   :grey => false,
+  :parse_header => true,
   :foreground => "none",
   :background => "none",
   :attribute => "bold",
@@ -46,6 +47,9 @@ loop do
     }
     opts.on("--[no-]column-names", "Display column names") { |v|
       options[:col_names] = v
+    }
+    opts.on("--[no-]parse-header", "Parse header for options") { |v|
+      options[:parse_header] = v
     }
     opts.on("--foreground COLOR", "Foreground color for hilight #{val[:foreground]}") { |v|
       options[:foreground] = v
@@ -148,6 +152,12 @@ if (f = ARGV[0])
     end
   end
 end
+header_l = nil
+if options[:parse_header]
+  header_l, a = ptr.parse_header
+  opts.parse(a)
+  opts = nil
+end
 
 begin
   Curses.new do |curses|
@@ -160,6 +170,7 @@ begin
     display.col_hide(*options[:hide])
     options[:formats].each { |fmt| manager.column_format(fmt) }
     options[:ignore].each { |pat| manager.ignore_line(pat) }
+    manager.ignore_line("1-#{header_l}") if header_l && header_l > 0
 
     manager.main_loop
   end
