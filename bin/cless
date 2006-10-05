@@ -56,6 +56,12 @@ loop do
     opts.on("--attribute ATTR", "Attribute for hilight #{val[:attribute]}") { |v|
       options[:attribute] = v
     }
+    opts.on("--hide COLUMNS", 
+            "Comma separated list of columns to hide") { |v|
+      a = v.split(/[,\s]+/).collect { |x| x.to_i }
+      a.delete_if { |x| x < 0 }
+      options[:hide] += a
+    }
     opts.on("--names NAMES", "Comma separated list of column names") { |v|
       options[:names] = v.split_with_quotes("\s,")
     }
@@ -71,17 +77,11 @@ loop do
     opts.on("-T", "--tmp-dir DIR", "Temporary directory #{val[:tmp_dir]}") { |v|
       options[:tmp_dir] = v
     }
-    opts.on("-h", "--hide COLUMNS", 
-            "Comma separated list of columns to hide") { |v|
-      a = v.split(/[,\s]+/).collect { |x| x.to_i }
-      a.delete_if { |x| x < 0 }
-      options[:hide] += a
-    }
     opts.on_tail("-v", "--version", "Show version and exit") {
       puts(Version.join('.'))
       exit(0)
     }
-    opts.on_tail("--help", "This message") {
+    opts.on_tail("-h", "--help", "This message") {
       puts(opts)
       exit(0)
     }
