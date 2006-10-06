@@ -15,6 +15,7 @@ options = {
   :background => "none",
   :attribute => "bold",
   :names => nil,
+  :type => nil,
   :formats => [],
   :ignore => [],
   :hide => [],
@@ -77,6 +78,9 @@ loop do
     }
     opts.on("--ignore PATTERN", "Line to ignore") { |v|
       options[:ignore] << v
+    }
+    opts.on("--type TYPE", "Type of file") { |v|
+      options[:type] = v
     }
     opts.on("-T", "--tmp-dir DIR", "Temporary directory #{val[:tmp_dir]}") { |v|
       options[:tmp_dir] = v
@@ -143,8 +147,9 @@ options[:options_db].each do |f|
     $stderr.puts("Error with db #{f}: #{e.message}")
   end
 end
-if (f = ARGV[0])
-  if (a = db.find(f))
+type = options[:type] || ARGV[0]
+if type
+  if (a = db.find(type))
     begin
       opts.parse(a)
     rescue => e
