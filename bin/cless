@@ -161,7 +161,7 @@ if type
 end
 header_l = nil
 if options[:parse_header]
-  header_l, a = ptr.parse_header
+  header_l, a = ptr.parse_header(["type", "names", "format", "ignore"])
   opts.parse(a)
   opts = nil
 end

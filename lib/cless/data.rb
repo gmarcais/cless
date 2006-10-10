@@ -1,15 +1,19 @@
 # Including class must respond to #each_line
 module MappedCommon
-  def parse_header
+  def parse_header(allowed = [])
     a = []
     i = 0
     each_line do |l|
       break unless l =~ %r{^\s*#(.*)$}
       i += 1
       s = $1
-      if s =~ /^\s*cless:(.*)$/
+      case s
+      when /^\s*cless:(.*)$/
         s = $1.strip
         a += s.split_with_quotes
+      when /^\s*(\w+):(.*)$/
+        k, v = $1.strip, $2.strip
+        a << "--#{k}" << v if allowed.include?(k)
       end
     end
     return i, a
