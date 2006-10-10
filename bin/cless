@@ -46,10 +46,12 @@ loop do
     opts.on("--[no-]hilight", "Hilight every other line #{onoff[:grey]}") { |v|
       options[:grey] = v
     }
-    opts.on("--[no-]column-names", "Display column names") { |v|
+    opts.on("--[no-]column-names", "Display column names " +
+              "#{onoff[:col_names]}") { |v|
       options[:col_names] = v
     }
-    opts.on("--[no-]parse-header", "Parse header for options") { |v|
+    opts.on("--[no-]parse-header", "Parse header for options " +
+              "#{onoff[:parse_header]}") { |v|
       options[:parse_header] = v
     }
     opts.on("--foreground COLOR", "Foreground color for hilight #{val[:foreground]}") { |v|
