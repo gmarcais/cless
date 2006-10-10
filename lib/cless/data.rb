@@ -1,8 +1,9 @@
+# Including class must respond to #each_line
 module MappedCommon
   def parse_header
     a = []
     i = 0
-    @ptr.each_line do |l|
+    each_line do |l|
       break unless l =~ %r{^\s*#(.*)$}
       i += 1
       s = $1
@@ -86,6 +87,25 @@ class MappedStream
     @lines += 1 if @ptr[-1] != ?\n
     return @lines
   end
+
+  def each_line
+    off = 0
+    loop do
+      r = @ptr.index("\n", off)
+      if r
+        yield(@ptr[off..r])
+        off = r + 1
+      else
+        begin
+          @fd.sysread(@buf_size, @buf)
+          @ptr << @buf
+        rescue EOFError
+          @more = false
+          break
+        end
+      end
+    end
+  end
 end
 
 class MappedFile
@@ -112,7 +132,8 @@ class MappedFile
   def rindex(*args); @ptr.rindex(*args); end
   def index(*args); @ptr.index(*args); end
   def [](*args); @ptr[*args]; end
-  
+  def each_line(&b); @ptr.each_line(&b); end
+
   def lines
     return @lines if @lines
     @lines = @ptr.count("\n")
