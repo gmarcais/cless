@@ -113,6 +113,7 @@ class LineDisplay
     :column => false,           # Wether to display column number
     :col_zero => false,         # 0-based column numbering
     :line => false,             # Wether to display line number
+    :line_offset => false,      # Display line offset instead of number
     :col_names => false,        # Wether to display column names
   }
   attr_accessor *DEFAULTS.keys
@@ -182,7 +183,8 @@ class LineDisplay
       if @line
         Ncurses.attron(Ncurses::A_REVERSE) if l.has_match
         Ncurses.attron(Ncurses::A_UNDERLINE) if IgnoredLine === l
-        Ncurses.mvaddstr(sline, 0, "%*s " % [linec, line_i])
+        s = @line_offset ? l.off : line_i
+        Ncurses.mvaddstr(sline, 0, "%*s " % [linec, s])
         Ncurses.attroff(Ncurses::A_REVERSE) if l.has_match
         Ncurses.attroff(Ncurses::A_UNDERLINE) if IgnoredLine === l
       end
@@ -312,7 +314,10 @@ class LineDisplay
     col_show = (0..(sizes.size-1)).to_a
     col_show -= @col_hide if @col_hide
     sizes = sizes.values_at(*col_show)
-    linec = (@data.line + lines).to_s.size if @line
+    if @line
+      linec = @line_offset ? @data.max_offset : (@data.line + lines)
+      linec = linec.to_s.size
+    end
     len -= linec + 1 if @line
     nbf = [sizes.size - @st_col, 0].max
     format = "%*s " * nbf

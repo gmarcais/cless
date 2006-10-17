@@ -60,6 +60,7 @@ class Manager
       when ?g: @display.grey = !@display.grey; break
       when ?c: @display.column = !@display.column; break
       when ?l: @display.line = !@display.line; break
+      when ?L: @display.line_offset = !@display.line_offset; break;
       when ?h: status = hide_columns; break
       when ?H: status = hide_columns(:show); break
       when ?0: @display.col_zero = !@display.col_zero; break

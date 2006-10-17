@@ -156,12 +156,13 @@ class FieldMatch
 end
 
 class Line
-  attr_reader :has_match
+  attr_reader :has_match, :off
 
-  def initialize(a, onl = nil)
+  def initialize(a, onl = nil, off = nil)
     @a, @onl = a, onl
     @m = []
     @has_match = false
+    @off = off
   end
 
   def ignored; false; end
@@ -191,11 +192,12 @@ class Line
 end
 
 class IgnoredLine
-  attr_reader :has_match, :str
+  attr_reader :has_match, :str, :off
 
-  def initialize(str)
+  def initialize(str, off)
     @str = str
     @has_match = false
+    @off = off                  # Byte offset in file of beginning of line
   end
 
   def match(pattern)
@@ -391,6 +393,11 @@ class MapData
 
   def ignore_pattern_list; @ignored ? @ignored : []; end
 
+  # Returns the maximum line offset of all lines in cache
+  def max_offset
+    @cache.collect { |l| l.off }.max
+  end
+
   private
   def search_next(dir = :forward)
     if dir == :forward
@@ -438,14 +445,14 @@ class MapData
 
   # str = line
   # i = line number
-  def line_massage(str, i)
+  def line_massage(str, i, off)
     if @ignored && line_ignore?(str, i)
-      l = IgnoredLine.new(str)
+      l = IgnoredLine.new(str, off)
     else
       onl, nl = nil, str.split
       onl = reformat(nl) if @formats
       @sizes.max_update(nl.collect { |x| x.size })
-      l = Line.new(nl, onl)
+      l = Line.new(nl, onl, off)
     end
     l.match(@pattern) if @pattern
     l
@@ -455,7 +462,7 @@ class MapData
     lnb = @line + @cache.size
     n.times do |i|
       noff2 = @str.index("\n", @off2) or break
-      @cache << line_massage(@str[@off2..(noff2-1)], lnb + i)
+      @cache << line_massage(@str[@off2..(noff2-1)], lnb + i, @off2)
       @off2 = noff2 + 1
     end
     @line2 = @line + @cache.size
@@ -466,7 +473,7 @@ class MapData
     n.times do |i|
       break if @off < 2
       noff = (@str.rindex("\n", @off-2) || -1) + 1
-      @cache.unshift(line_massage(@str[noff..(@off-2)], lnb - i))
+      @cache.unshift(line_massage(@str[noff..(@off-2)], lnb - i, noff))
       @off = noff
     end
     @line = @line2 - @cache.size

@@ -9,6 +9,7 @@ options = {
   :column => false,
   :col_zero => false,
   :line => false,
+  :line_offset => false,
   :grey => false,
   :parse_header => true,
   :foreground => "none",
@@ -42,6 +43,10 @@ loop do
     }
     opts.on("--[no-]line", "Display line number #{onoff[:line]}") { |v|
       options[:line] = v
+    }
+    opts.on("--[no-]offset", "Display offset instead of line number " +
+              onoff[:line_offset]) { |v|
+      options[:line_offset] = v
     }
     opts.on("--[no-]hilight", "Hilight every other line #{onoff[:grey]}") { |v|
       options[:grey] = v
