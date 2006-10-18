@@ -119,7 +119,7 @@ class Manager
     else
       begin
         pattern = Regexp.new(s)
-        @data.search(pattern) or return "Pattern not found!"
+        @data.search(pattern, dir) or return "Pattern not found!"
       rescue RegexpError => e
         return "Bad regexp: #{e.message}"
       end
