@@ -166,11 +166,17 @@ class Manager
   def goto_position
     s = @display.prompt("Goto: ") or return "Canceled"
     s.strip!
-    if s[-1] == ?p || s[-1] == ?%
+    case s[-1]
+    when ?p, ?%
       s.slice!(-1)
       f = s.to_f
       return "Invalid percentage" if f <= 0.0 || f > 100.0
       @data.goto_percent(f)
+    when ?o
+      s.slice!(-1)
+      i = s.to_i
+      return "Invalid offset" if i < 0
+      @data.goto_offset(i)
     else
       i = s.to_i
       return "Invalid line number" if i <= 0

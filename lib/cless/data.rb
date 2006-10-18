@@ -18,6 +18,21 @@ module MappedCommon
     end
     return i, a
   end
+
+  def count_lines_upto(stop_off)
+    cur = 0
+    nb = 0
+    while cur <= stop_off do
+      cur = @ptr.index("\n", cur)
+      if cur
+        cur += 1
+        nb += 1
+      else
+        break
+      end
+    end
+    nb
+  end
 end
 
 # Read from a stream. Write data to a temporary file, which is mmap.
@@ -76,18 +91,23 @@ class MappedStream
   end
   def [](*args); @ptr[*args]; end
 
-  def lines
+  # Get the total number of lines
+  # Stop if line_stop or offset_stop limits are crossed.
+  def lines(line_stop = nil, offset_stop = nil)
     return @lines if @lines
-    @lines = @ptr.count("\n")
+    lines = @ptr.count("\n")
     while @more
       begin 
         @fd.sysread(@buf_size, @buf)
         @ptr << @buf
-        @lines += @buf.count("\n")
+        lines += @buf.count("\n")
+        return lines if line_stop && lines >= line_stop
+        return @ptr.size if offset_stop && @ptr.size >= offset_stop
       rescue EOFError
         @more = false
       end
     end
+    @lines = lines
     @lines += 1 if @ptr[-1] != ?\n
     return @lines
   end
@@ -275,6 +295,14 @@ class MapData
     percent = percent.to_f
     line = (@str.lines * percent / 100).round
     goto_line(line)
+  end
+
+  def goto_offset(off)
+    @str.lines(nil, off) if off > @str.size
+    off -= 1 if @str[off] == ?\n && off > 0
+    @off = @off2 = (@str.rindex("\n", off) || -1) + 1
+    @line = @line2 = @str.count_lines_upto(@off)
+    @cache.clear
   end
 
   # Return true if pattern found, false otherwise
