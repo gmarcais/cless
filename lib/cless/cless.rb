@@ -43,21 +43,21 @@ class Manager
     status = nil
     while !@done do
       case k = Ncurses.getch
-      when Ncurses::KEY_DOWN, Ncurses::KEY_ENTER, ?\n, ?\r
+      when Ncurses::KEY_DOWN, Ncurses::KEY_ENTER, ?e, ?\n, ?\r
         @data.scroll(1); break
-      when Ncurses::KEY_UP: @data.scroll(-1); break
-      when " "[0], Ncurses::KEY_NPAGE: 
+      when Ncurses::KEY_UP, ?y: @data.scroll(-1); break
+      when " "[0], Ncurses::KEY_NPAGE, ?f: 
           @data.scroll(@display.nb_lines - 1); break
-      when Ncurses::KEY_PPAGE: @data.scroll(1 - @display.nb_lines); break
-      when Ncurses::KEY_HOME: @data.goto_start; break
-      when Ncurses::KEY_END: @data.goto_end; break
+      when Ncurses::KEY_PPAGE, ?b: @data.scroll(1 - @display.nb_lines); break
+      when Ncurses::KEY_HOME, ?g, ?<: @data.goto_start; break
+      when Ncurses::KEY_END, ?G, ?>: @data.goto_end; break
       when Ncurses::KEY_LEFT: @display.st_col -= 1; break
       when Ncurses::KEY_RIGHT: @display.st_col += 1; break
-      when ?f: status = goto_position; break
+      when ?F: status = goto_position; break
       when ?%: status = column_format_prompt; break
       when ?i: status = ignore_line_prompt; break
       when ?I: status = ignore_line_remove_prompt; break
-      when ?g: @display.grey = !@display.grey; break
+      when ?o: @display.grey = !@display.grey; break
       when ?c: @display.column = !@display.column; break
       when ?l: @display.line = !@display.line; break
       when ?L: @display.line_offset = !@display.line_offset; break;
