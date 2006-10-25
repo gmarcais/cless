@@ -43,8 +43,8 @@ class Manager
     status = nil
     while !@done do
       case k = Ncurses.getch
-      when Ncurses::KEY_DOWN, Ncurses::KEY_ENTER, ?\n, ?\r: 
-          @data.scroll(1); break
+      when Ncurses::KEY_DOWN, Ncurses::KEY_ENTER, ?\n, ?\r
+        @data.scroll(1); break
       when Ncurses::KEY_UP: @data.scroll(-1); break
       when " "[0], Ncurses::KEY_NPAGE: 
           @data.scroll(@display.nb_lines - 1); break
@@ -74,7 +74,7 @@ class Manager
       when ?s: status = save_file; break
       when ?t: status = show_hide_headers; break
       when ?T: status = change_headers; break
-      when ?r: @data.clear_cache; break
+      when ?r: @data.clear_cache; Ncurses::endwin; Ncurses::doupdate; break
       when Ncurses::KEY_RESIZE: break
       when ?q: return nil
       else 
