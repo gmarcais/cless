@@ -6,6 +6,7 @@ require 'mmap'
 require 'cless/data'
 require 'cless/display'
 require 'cless/optionsdb'
+require 'cless/help'
 
 class String
   def split_with_quotes(sep = '\s', q = '\'"')
@@ -31,6 +32,9 @@ class Manager
   def done; @done = true; end
 
   def main_loop
+    if @status.empty?
+      @status = "Help? Press a or F1"
+    end
     while !@done do
       @data.cache_fill(@display.nb_lines)
       @display.refresh
@@ -76,6 +80,7 @@ class Manager
       when ?T: status = change_headers; break
       when ?r: @data.clear_cache; Ncurses::endwin; Ncurses::doupdate; break
       when Ncurses::KEY_RESIZE: break
+      when Ncurses::KEY_F1, ?a: status = display_help; break
       when ?q: return nil
       else 
       end
@@ -269,5 +274,15 @@ class Manager
     end
     @data.clear_cache
     "Ignored: " + ignore_line_list_display(@data.ignore_pattern_list).join(" ")
+  end
+
+  def display_help
+    Ncurses.endwin
+    Help.display
+    nil
+  rescue => e
+    e.message
+  ensure
+    Ncurses.refresh
   end
 end
