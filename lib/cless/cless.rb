@@ -69,8 +69,8 @@ class Manager
       when ?3: @display.next_attribute; status = color_descr; break
       when ?/: status = search(:forward); break
       when ??: status = search(:backward); break
-      when ?n: status = repeat_search(:forward); break
-      when ?p: status = repeat_search(:backward); break
+      when ?n: status = repeat_search; break
+      when ?N: status = repeat_search(true); break
       when ?s: status = save_file; break
       when ?t: status = show_hide_headers; break
       when ?T: status = change_headers; break
@@ -118,6 +118,7 @@ class Manager
       @data.search_clear
     else
       begin
+        @search_dir = dir
         pattern = Regexp.new(s)
         @data.search(pattern, dir) or return "Pattern not found!"
       rescue RegexpError => e
@@ -128,8 +129,13 @@ class Manager
   end
 
   # Return a status if an error occur, otherwise, returns nil
-  def repeat_search(dir = :forward)
+  def repeat_search(reverse = false)
     return "No pattern" if !@data.pattern
+    dir = if reverse 
+            (@search_dir == :forward) ? :backward : :forward
+          else 
+            @search_dir
+          end
     @data.repeat_search(dir) or return "Pattern not found!"
     return nil
   end
