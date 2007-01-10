@@ -239,8 +239,8 @@ class MapData
   def initialize(str)
     @str = str
     @line = @line2 = 0
-    @off = @off2 = 0    # @off = first character of first line in cache
-                        # @off = first character of first line past cache
+    @off = @off2 = 0    # @off  = first character of first line in cache
+                        # @off2 = first character of first line past cache
     @cache = []
     @sizes = []
     @pattern = nil      # search pattern
@@ -349,14 +349,18 @@ class MapData
     return if delta == 0
     cache_size = @cache.size
     if delta > 0
-      @line += skip_forward(delta) 
-      @cache.slice!(0, delta)
-      cache_forward(@line2 - @line - @cache.size)
+      skipped = skip_forward(delta) 
+      @line += skipped
+      @line2 = @line if @line > @line2
+      @cache.slice!(0, skipped)
+      cache_forward([cache_size, skipped].min)
     else
-      @line2 -= skip_backward(-delta)
+      skipped = skip_backward(-delta)
+      @line2 -= skipped
+      @line = @line2 if @line2 < @line
       delta = -@cache.size if -delta > @cache.size
       @cache.slice!((delta..-1))
-      cache_backward(cache_size - @cache.size)
+      cache_backward([cache_size, skipped].min)
     end
   end
 
