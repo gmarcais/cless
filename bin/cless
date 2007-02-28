@@ -10,6 +10,7 @@ options = {
   :col_zero => false,
   :line => false,
   :line_offset => false,
+  :col_space => 1,
   :grey => false,
   :parse_header => true,
   :foreground => "none",
@@ -64,6 +65,10 @@ loop do
     }
     opts.on("--background COLOR", "Background color for hilight #{val[:background]}") { |v|
       options[:background] = v
+    }
+    opts.on("--col-space NB", "Number of spaces between columns " +
+            val[:col_space]) { |v|
+      options[:col_space] = v.to_i
     }
     opts.on("--attribute ATTR", "Attribute for hilight #{val[:attribute]}") { |v|
       options[:attribute] = v

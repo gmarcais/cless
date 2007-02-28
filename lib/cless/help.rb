@@ -14,6 +14,8 @@ module Help
 . ARROW_LEFT:                   scroll one column to the left
 . HOME, g, <:                   go to top of file
 . END, G, >:                    go to end of file
+. +:                            increase column spacing
+. -:                            decrease column spacing
 . 1:                            change foreground colors for highlight
 . 2:                            change background colors for highlight
 . 3:                            change attributes for hilight

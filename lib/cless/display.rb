@@ -115,13 +115,14 @@ class LineDisplay
     :line => false,             # Wether to display line number
     :line_offset => false,      # Display line offset instead of number
     :col_names => false,        # Wether to display column names
+    :col_space => 1,            # Number of spaces between columns
   }
   attr_accessor *DEFAULTS.keys
 
   attr_accessor :grey_color, :col_headers
   def initialize(data, args = {})
     DEFAULTS.each { |k, v|
-      instance_variable_set("@#{k}", args[k].nil? ? v : args[k])
+      self.send("#{k}=", args[k].nil? ? v : args[k])
     }
     @data = data
     @col_hide = nil
@@ -168,6 +169,10 @@ class LineDisplay
     @st_col = n
   end
 
+  def col_space=(n)
+    @col_space = [1, n.to_i].max
+  end
+
   def refresh
     Ncurses.move(0, 0)
     Ncurses.attrset(Ncurses.COLOR_PAIR(0))
@@ -196,10 +201,11 @@ class LineDisplay
       Ncurses.attron(Ncurses::A_REVERSE) if l.has_match
       Ncurses.attron(Ncurses::A_UNDERLINE) if IgnoredLine === l
       s = @line_offset ? l.off : line_i
-      Ncurses.mvaddstr(sline, 0, "%*s " % [@linec, s])
+      Ncurses.mvaddstr(sline, 0, @col_fmt % [@linec, s])
       Ncurses.attroff(Ncurses::A_REVERSE) if l.has_match
       Ncurses.attroff(Ncurses::A_UNDERLINE) if IgnoredLine === l
     end
+    space = " " * @col_space
     if Line === l
       a = l.values_at(*@col_show)
       a.slice!(0, @st_col)
@@ -221,10 +227,10 @@ class LineDisplay
             clen -= str.length; break if clen <= 0
             Ncurses.addstr(str = m.post_match[0, clen])
             clen -= str.length; break if clen <= 0
-            Ncurses.addstr(str = " ")
+            Ncurses.addstr(str = space)
             clen -= str.length; break if clen <= 0            
           else
-            Ncurses.addstr(str = ("%*s " % [s, a[i]])[0, clen])
+            Ncurses.addstr(str = (@col_fmt % [s, a[i]])[0, clen])
             clen -= str.length; break if clen <= 0
           end
         }
@@ -296,7 +302,7 @@ class LineDisplay
     @sizes.slice!(0, @st_col)
 
     if @column
-      Ncurses.addstr(" " * (@linec + 1)) if @line
+      Ncurses.addstr(" " * (@linec + @col_space)) if @line
       i = -1
       cnumber.collect! { |x| i += 1; x.center(@sizes[i]) }
       s = (@format % @sizes.zip(cnumber).flatten).ljust(@len)[0, @len]
@@ -322,9 +328,10 @@ class LineDisplay
       @linec = @line_offset ? @data.max_offset : (@data.line + lines)
       @linec = @linec.to_s.size
     end
-    @len -= @linec + 1 if @line
+    @len -= @linec + @col_space if @line
     nbf = [@sizes.size - @st_col, 0].max
-    @format = "%*s " * nbf
+    @col_fmt = "%*s#{' ' * @col_space}"
+    @format = @col_fmt * nbf
     return lines
   end
 

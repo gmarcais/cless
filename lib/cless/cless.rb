@@ -57,6 +57,8 @@ class Manager
       when Ncurses::KEY_END, ?G, ?>: @data.goto_end; break
       when Ncurses::KEY_LEFT: @display.st_col -= 1; break
       when Ncurses::KEY_RIGHT: @display.st_col += 1; break
+      when ?+: @display.col_space += 1; break
+      when ?-: @display.col_space -= 1; break
       when ?F: status = goto_position; break
       when ?%: status = column_format_prompt; break
       when ?i: status = ignore_line_prompt; break
