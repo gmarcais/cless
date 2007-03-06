@@ -78,6 +78,7 @@ class Manager
       when ?n: status = repeat_search; break
       when ?N: status = repeat_search(true); break
       when ?s: status = save_file; break
+      when ?S: status = change_split_pattern; break
       when ?t: status = show_hide_headers; break
       when ?T: status = change_headers; break
       when ?r: @data.clear_cache; Ncurses::endwin; Ncurses::doupdate; break
@@ -276,6 +277,19 @@ class Manager
     end
     @data.clear_cache
     "Ignored: " + ignore_line_list_display(@data.ignore_pattern_list).join(" ")
+  end
+
+  def change_split_pattern
+    s = @display.prompt("Split regexp(/#{@data.split_regexp}/): ")
+    return "Not changed" if !s
+    begin
+      s.gsub!(%r{^/|/$}, '')
+      regexp = s.empty? ? nil : Regexp.new(s)
+    rescue => e
+      return "Invalid regexp /#{s}/: #{e.message}"
+    end
+    @data.split_regexp = regexp
+    return "New split regexp: /#{regexp}/"
   end
 
   def display_help

@@ -235,8 +235,8 @@ class IgnoredLine
 end
 
 class MapData
-  attr_reader :sizes, :line, :line2, :pattern
-  def initialize(str)
+  attr_reader :sizes, :line, :line2, :pattern, :split_regexp
+  def initialize(str, split_regexp = nil)
     @str = str
     @line = @line2 = 0
     @off = @off2 = 0    # @off  = first character of first line in cache
@@ -246,6 +246,7 @@ class MapData
     @pattern = nil      # search pattern
     @formats = nil      # formating strings. When not nil, a hash.
     @ignores = nil      # line ignored index or pattern.
+    @split_regexp = split_regexp        # split pattern
   end
 
   def file_path; @str.file_path; end
@@ -412,6 +413,11 @@ class MapData
     true
   end
 
+  def split_regexp=(regexp)
+    @split_regexp = regexp
+    clear_cache
+  end
+
   def remove_ignore(pattern)
     if pattern.nil?
       r, @ignored = @ignored, nil
@@ -481,7 +487,7 @@ class MapData
     if @ignored && line_ignore?(str, i)
       l = IgnoredLine.new(str, off)
     else
-      onl, nl = nil, str.split
+      onl, nl = nil, str.split(@split_regexp)
       onl = reformat(nl) if @formats
       @sizes.max_update(nl.collect { |x| x.size })
       l = Line.new(nl, onl, off)

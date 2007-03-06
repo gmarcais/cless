@@ -20,6 +20,7 @@ options = {
   :type => nil,
   :formats => [],
   :ignore => [],
+  :split_regexp => nil,
   :hide => [],
   :tmp_dir => Dir.tmpdir,
   :options_db => [],
@@ -91,6 +92,9 @@ loop do
     opts.on("--ignore PATTERN", "Line to ignore") { |v|
       options[:ignore] << v
     }
+    opts.on("--split-regexp REGEXP", "Regular expression to split lines") { |v|
+      options[:split_regexp] = v
+    }
     opts.on("--type TYPE", "Type of file") { |v|
       options[:type] = v
     }
@@ -140,6 +144,10 @@ if !$stdin.tty?
   $stdin.reopen($stdout)
 end
 
+trap("SIGTERM") { exit }
+trap("SIGINT") { exit }
+trap("SIGQUIT") { exit }
+
 ptr = begin
         ARGV[0] ? MappedFile.new(ARGV[0]) : MappedStream.new(stdin, options)
       rescue ArgumentError => e
@@ -147,39 +155,46 @@ ptr = begin
         exit(1)
       end
 
-trap("SIGTERM") { exit }
-trap("SIGINT") { exit }
-trap("SIGQUIT") { exit }
-
-db = OptionsDB.new
-options[:options_db].each do |f| 
-  begin
-    db.parse_file(f)
-  rescue => e
-    $stderr.puts("Error with db #{f}: #{e.message}")
-  end
-end
-type = options[:type] || ARGV[0]
-if type
-  if (a = db.find(type))
+begin
+  # Finish parsing options
+  db = OptionsDB.new
+  options[:options_db].each do |f| 
     begin
-      opts.parse(a)
+      db.parse_file(f)
     rescue => e
-      $stderr.puts("Error with options from db: #{e.message}")
+      $stderr.puts("Error with db #{f}: #{e.message}")
     end
   end
-end
-header_l = nil
-if options[:parse_header]
-  header_l, a = ptr.parse_header(["type", "names", "format", "ignore"])
-  opts.parse(a)
-  opts = nil
-end
-
-begin
+  type = options[:type] || ARGV[0]
+  if type
+    if (a = db.find(type))
+      begin
+        opts.parse(a)
+      rescue => e
+        $stderr.puts("Error with options from db: #{e.message}")
+      end
+    end
+  end
+  header_l = nil
+  if options[:parse_header]
+    header_l, a = ptr.parse_header(["type", "names", "format", "ignore"])
+    opts.parse(a)
+    opts = nil
+  end
+  begin
+    s = options[:split_regexp]
+    s.gsub!(%r{^/|/$}, '')
+    split_regexp = s.empty? ? nil : Regexp.new(s)
+  rescue => e
+    $stderr.puts("Invalid regexp /#{s}/: #{e.message}")
+    $stderr.puts("Using default whitespaces")
+    split_regexp = nil
+  end
+  
+  # Start curses application
   Curses.new do |curses|
     
-    data = MapData.new(ptr)
+    data = MapData.new(ptr, split_regexp)
     display = LineDisplay.new(data, options)
     manager = Manager.new(data, display, curses, db)
 
