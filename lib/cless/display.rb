@@ -356,11 +356,19 @@ class LineDisplay
     s, pos, key = read_line(stdscr.getmaxy-1, ps.length)
     Ncurses.mvaddstr(stdscr.getmaxy-1, 0, " " * len)
     return (key == ?\e) ? nil : s
+  rescue KeyboardInterrupt
+    return nil
   end
 
   # read_line returns an array
   # [string, last_cursor_position_in_string, keycode_of_terminating_enter_key].
-  # Complete the "when" clauses before including in your app!
+  CTRL_A = ?a - ?a + 1
+  CTRL_B = ?b - ?a + 1
+  CTRL_D = ?d - ?a + 1
+  CTRL_E = ?e - ?a + 1
+  CTRL_F = ?f - ?a + 1
+  CTRL_H = ?h - ?a + 1
+  CTRL_K = ?k - ?a + 1
   def read_line(y, x,
                 window     = Ncurses.stdscr,
                 max_len    = (window.getmaxx - x - 1),
@@ -371,20 +379,28 @@ class LineDisplay
       window.move(y,x+cursor_pos)
       ch = window.getch
       case ch
-      when Ncurses::KEY_LEFT
+      when Ncurses::KEY_LEFT, CTRL_B
         cursor_pos = [0, cursor_pos-1].max
-      when Ncurses::KEY_RIGHT
+      when Ncurses::KEY_RIGHT, CTRL_F
         cursor_pos = [string.length, cursor_pos+1].min
       when Ncurses::KEY_ENTER, ?\n, ?\r
         return string, cursor_pos, ch # Which return key has been used?
-      when Ncurses::KEY_HOME
+      when Ncurses::KEY_HOME, CTRL_A
         cursor_pos = 0
-      when Ncurses::KEY_END
+      when Ncurses::KEY_END, CTRL_E
         cursor_pos = [max_len, string.length].min
-      when Ncurses::KEY_BACKSPACE, ?\b
-        string = string[0...([0, cursor_pos-1].max)] + string[cursor_pos..-1]
-        cursor_pos = [0, cursor_pos-1].max
+      when Ncurses::KEY_DC, CTRL_D
+        string.slice!(cursor_pos)
         window.mvaddstr(y, x+string.length, " ")
+      when CTRL_K
+        window.mvaddstr(y, x, " " * string.length)
+        string = ""
+      when Ncurses::KEY_BACKSPACE, ?\b
+        if cursor_pos > 0
+          cursor_pos -= 1
+          string.slice!(cursor_pos)
+          window.mvaddstr(y, x+string.length, " ")
+        end
       when ?\e          # ESCAPE
         return "", 0, ch
       when " "[0]..255 # remaining printables

@@ -144,8 +144,10 @@ if !$stdin.tty?
   $stdin.reopen($stdout)
 end
 
+class KeyboardInterrupt < StandardError; end
+
 trap("SIGTERM") { exit }
-trap("SIGINT") { exit }
+trap("SIGINT") { raise KeyboardInterrupt, "Ctrl-C" }
 trap("SIGQUIT") { exit }
 
 ptr = begin
@@ -193,7 +195,6 @@ begin
   
   # Start curses application
   Curses.new do |curses|
-    
     data = MapData.new(ptr, split_regexp)
     display = LineDisplay.new(data, options)
     manager = Manager.new(data, display, curses, db)
@@ -206,6 +207,8 @@ begin
 
     manager.main_loop
   end
+rescue KeyboardInterrupt
+  # Quit normally
 ensure
   ptr.munmap
 end
