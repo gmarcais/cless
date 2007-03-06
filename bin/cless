@@ -185,8 +185,8 @@ begin
   end
   begin
     s = options[:split_regexp]
-    s.gsub!(%r{^/|/$}, '')
-    split_regexp = s.empty? ? nil : Regexp.new(s)
+    s && s.gsub!(%r{^/|/$}, '')
+    split_regexp = (!s || s.empty?) ? nil : Regexp.new(s)
   rescue => e
     $stderr.puts("Invalid regexp /#{s}/: #{e.message}")
     $stderr.puts("Using default whitespaces")
