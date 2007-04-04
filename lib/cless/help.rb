@@ -26,6 +26,7 @@ module Help
  h:                            hide column (space separated list)
  H:                            show column (space separated list)
  o:                            toggle highlighting of alternate lines
+ O:                            toggle highlighting of alternate columns
  F:                            go to line. 10  -> absolute line number
                                             10o -> absolute offset
                                             10% -> percentage in file

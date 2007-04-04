@@ -108,8 +108,8 @@ end
 
 class LineDisplay
   DEFAULTS = {
-    :grey => true,          # Wether to hilight every other line
-    :grey_color => 1,
+    :line_highlight => true,   # Wether to hilight every other line
+    :col_highlight => true,    # Wether to hilight every other column
     :column => false,           # Wether to display column number
     :col_zero => false,         # 0-based column numbering
     :line => false,             # Wether to display line number
@@ -119,7 +119,7 @@ class LineDisplay
   }
   attr_accessor *DEFAULTS.keys
 
-  attr_accessor :grey_color, :col_headers
+  attr_accessor :col_headers
   def initialize(data, args = {})
     DEFAULTS.each { |k, v|
       self.send("#{k}=", args[k].nil? ? v : args[k])
@@ -185,8 +185,9 @@ class LineDisplay
     refresh_column_headers
 
     @data.lines(lines) { |l|
-      @grey and ((line_i%2 == 0) ? @attr.reset : @attr.set)
-      display_line(l, line_i, sline)
+      highlighted = @line_highlight && (line_i%2 == 0)
+      highlighted ? @attr.set : @attr.reset
+      display_line(l, line_i, sline, highlighted)
       i += 1
       line_i += 1
       sline += 1
@@ -196,7 +197,7 @@ class LineDisplay
     Ncurses.refresh
   end
 
-  def display_line(l, line_i, sline)
+  def display_line(l, line_i, sline, highlighted)
     if @line
       Ncurses.attron(Ncurses::A_REVERSE) if l.has_match
       Ncurses.attron(Ncurses::A_UNDERLINE) if IgnoredLine === l
@@ -209,12 +210,15 @@ class LineDisplay
     if Line === l
       a = l.values_at(*@col_show)
       a.slice!(0, @st_col)
-      if l.has_match
-        # Lines has search matches, display a field at a time
+      if l.has_match || (@col_highlight && !highlighted)
+        # Lines has search matches or do column highlight
+        # => display one field at a time
         ms = l.matches_at(*@col_show)
         ms.slice!(0, @st_col)
         clen = @len
         @sizes.zip(ms).each_with_index { |sm, i|
+          chilighted = !highlighted && @col_highlight && ((@st_col + i)%2 == 1)
+          @attr.set if chilighted
           s, m = *sm
           if m
             Ncurses.addstr(str = (" " * (s - m.string.length))[0, clen])
@@ -233,7 +237,9 @@ class LineDisplay
             Ncurses.addstr(str = (@col_fmt % [s, a[i]])[0, clen])
             clen -= str.length; break if clen <= 0
           end
+          @attr.reset if chilighted
         }
+        @attr.reset if @col_highlight
         Ncurses.addstr(" " * clen) if clen > 0
       else
         # No match, display all at once

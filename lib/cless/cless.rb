@@ -63,7 +63,8 @@ class Manager
       when ?%: status = column_format_prompt; break
       when ?i: status = ignore_line_prompt; break
       when ?I: status = ignore_line_remove_prompt; break
-      when ?o: @display.grey = !@display.grey; break
+      when ?o: @display.line_highlight = !@display.line_highlight; break
+      when ?O: @display.col_highlight = !@display.col_highlight; break
       when ?c: @display.column = !@display.column; break
       when ?l: @display.line = !@display.line; break
       when ?L: @display.line_offset = !@display.line_offset; break;
