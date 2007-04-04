@@ -51,13 +51,13 @@ loop do
               onoff[:line_offset]) { |v|
       options[:line_offset] = v
     }
-    opts.on("--[no-]line-hilight", "Hilight every other line " +
+    opts.on("--[no-]line-highlight", "Hilight every other line " +
             onoff[:line_highlight]) { |v|
       options[:line_highlight] = v
     }
-    opts.on("--[no-]-column-hilight", "Hilight every other column " +
-            onoff[:col_hilight]) { |v|
-      options[:col_hilight] = v
+    opts.on("--[no-]column-highlight", "Hilight every other column " +
+            onoff[:col_highlight]) { |v|
+      options[:col_highlight] = v
     }
     opts.on("--[no-]column-names", "Display column names " +
               "#{onoff[:col_names]}") { |v|
