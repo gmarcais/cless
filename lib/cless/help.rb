@@ -64,7 +64,8 @@ module Help
 EOF
 
 
-  OPTIONS = "--no-column --no-line --no-hilight --no-parse-header " +
+  OPTIONS = "--no-column --no-line --no-offset --no-line-highlight " +
+    "--no-column-highlight --no-column-names --no-parse-header " +
     "--ignore '/^\s/'"
 
   def self.display
