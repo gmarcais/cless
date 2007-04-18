@@ -1,4 +1,4 @@
-#! /genome4/raid/gus/bin32/ruby
+#! /usr/bin/ruby
 
 require 'cless/cless'
 require 'optparse'
