@@ -82,6 +82,7 @@ class Manager
       when ?S: status = change_split_pattern; break
       when ?t: status = show_hide_headers; break
       when ?T: status = change_headers; break
+      when ?^: status = change_headers_to_line_content; break
       when ?r: @data.clear_cache; Ncurses::endwin; Ncurses::doupdate; break
       when Ncurses::KEY_RESIZE: break
       when Ncurses::KEY_F1, ?a: status = display_help; break
@@ -116,6 +117,22 @@ class Manager
     a = @db.find(s.strip) or return "Pattern not found"
     @display.col_headers = a
     nil
+  end
+
+  def change_headers_to_line_content
+    i = @data.line + 1
+    s = @display.prompt("Header line: ", i.to_s) or return "Canceled"
+    i, i_bak = s.to_i, i
+    return "Bad line number #{s}" if i < 1
+    @data.goto_line(i)
+    line = nil
+    @data.lines(1) { |l| line = l }
+    @data.goto_line(i_bak)     # Go back
+    return "No such line" unless line
+    return "Ignored line: can't use" if line.kind_of?(IgnoredLine)
+    @display.col_headers = line.values_at(0..-1)
+    @display.col_names = true
+    ""
   end
 
   # Return a status if an error occur, otherwise, returns nil

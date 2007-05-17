@@ -41,6 +41,7 @@ module Help
  S:                            change split regexp
  t:                            toggle column names
  T:                            change column names (BROKEN)
+ ^:                            use a line from file for column headers
  r:                            refresh display
  q:                            quit
 
