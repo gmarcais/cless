@@ -69,7 +69,8 @@ class Manager
       when ?L: @display.line_offset = !@display.line_offset; break;
       when ?h: status = hide_columns; break
       when ?H: status = hide_columns(:show); break
-      when ?0: @display.col_zero = !@display.col_zero; break
+      when ?0: @display.col_start = (@display.col_start == 0) ? 1 : 0; break
+      when ?): status = change_column_start; break
       when ?1: @display.next_foreground; status = color_descr; break
       when ?2: @display.next_background; status = color_descr; break
       when ?3: @display.next_attribute; status = color_descr; break
@@ -237,6 +238,12 @@ class Manager
     end
     cols = @data.formatted_column_list.sort.collect { |x| x + inc }
     "Formatted: " + cols.join(" ")
+  end
+
+  def change_column_start
+    s = @display.prompt("First column: ") or return "Canceled"
+    @display.col_start = s.to_i
+    ""
   end
 
   def ignore_line_prompt

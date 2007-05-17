@@ -111,7 +111,7 @@ class LineDisplay
     :line_highlight => true,   # Wether to hilight every other line
     :col_highlight => true,    # Wether to hilight every other column
     :column => false,           # Wether to display column number
-    :col_zero => false,         # 0-based column numbering
+    :col_start => 1,            # 1-based column numbering by default
     :line => false,             # Wether to display line number
     :line_offset => false,      # Display line offset instead of number
     :col_names => false,        # Wether to display column names
@@ -144,8 +144,7 @@ class LineDisplay
   # column to pass is 0-based or 1-based depending on col_zero
   def col_hide_clear; @col_hide = nil; end
   def col_hide(*args)
-    inc = @col_zero ? 0 : 1
-    args = args.collect { |x| x - inc }
+    args = args.collect { |x| x - @col_start }
     @col_hide ||= []
     @col_hide.push(*args)
     @col_hide.uniq!
@@ -154,12 +153,11 @@ class LineDisplay
 
   def col_hidden
     return [] unless @col_hide
-    @col_zero ? @col_hide : @col_hide.collect { |x| x + 1 }
+    @col_hide.collect { |x| x + @col_start }
   end
 
   def col_show(*args) 
-    inc = @col_zero ? 0 : 1
-    @col_hide and @col_hide -= args.collect { |x| x - inc }
+    @col_hide and @col_hide -= args.collect { |x| x - @col_start }
   end
 
   def st_col; @st_col; end
@@ -291,8 +289,7 @@ class LineDisplay
   # Return byte column offset
   def refresh_column_headers
     if @column
-      inc = (@col_zero) ? 0 : 1
-      cnumber = @col_show.collect { |x| (x + inc).to_s }
+      cnumber = @col_show.collect { |x| (x + @col_start).to_s }
       cnumber.compact!
       @sizes.max_update(cnumber.collect { |x| x.size })
       cnumber.slice!(0, @st_col)

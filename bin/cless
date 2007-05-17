@@ -7,7 +7,7 @@ Version = [0, 3, 4]
 
 options = {
   :column => false,
-  :col_zero => false,
+  :col_start => 1,
   :line => false,
   :line_offset => false,
   :col_space => 1,
@@ -39,10 +39,6 @@ loop do
     
     opts.on("--[no-]column", "Display column number #{onoff[:column]}") { |v|
       options[:column] = v
-    }
-    opts.on("--[no-]column-zero", 
-            "0-based numbering of column #{onoff[:col_zero]}") { |v|
-      options[:col_zero] = v
     }
     opts.on("--[no-]line", "Display line number #{onoff[:line]}") { |v|
       options[:line] = v
@@ -85,6 +81,10 @@ loop do
       a = v.split(/[,\s]+/).collect { |x| x.to_i }
       a.delete_if { |x| x < 0 }
       options[:hide] += a
+    }
+    opts.on("--column-start INDEX", Integer,
+            "first column index #{val[:col_start]}") { |v|
+      options[:col_start] = v
     }
     opts.on("--names NAMES", "Comma separated list of column names") { |v|
       options[:names] = v.split_with_quotes("\s,")
