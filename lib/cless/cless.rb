@@ -1,7 +1,6 @@
 require 'ncurses'
 require 'mmap'
 require 'tempfile'
-require 'mmap'
 
 require 'cless/data'
 require 'cless/display'

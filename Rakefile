@@ -16,5 +16,5 @@ end
 
 task :cless do |t|
   ARGV.shift
-  exec("ruby", "-Ilib", "./bin/cless", *ARGV)
+  exec("ruby", "-I./lib", "./bin/cless", *ARGV)
 end
