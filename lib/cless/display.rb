@@ -51,6 +51,9 @@ class Attr
   def set; Ncurses.attrset(@attribute | @pair); end
   def reset; Ncurses.attrset(Ncurses::A_NORMAL); end
 
+  def on; Ncurses.attron(@attribute | @pair); end
+  def off; Ncurses.attroff(@attribute | @pair); end
+
   def names
     r = {}
     r[:foreground] = (NAME2COLORS.find { |n, v| v == @foreground } || ["black"])[0]
@@ -115,9 +118,19 @@ class LineDisplay
     :line => false,             # Wether to display line number
     :line_offset => false,      # Display line offset instead of number
     :col_names => false,        # Wether to display column names
-    :col_space => 1,            # Number of spaces between columns
+    :col_space => 1,            # Width of separator between columns
+    :separator => " ",          # Separator caracter
+    :padding => " ",            # Padding caracter
   }
   attr_accessor *DEFAULTS.keys
+
+  def separator=(s)
+    @separator = (!s || s.empty?) ? " " : s
+  end
+
+  def padding=(s)
+    @padding = (!s || s.empty?) ? " " : s
+  end
 
   attr_accessor :col_headers
   def initialize(data, args = {})
@@ -203,7 +216,7 @@ class LineDisplay
       Ncurses.attroff(Ncurses::A_REVERSE) if l.has_match
       Ncurses.attroff(Ncurses::A_UNDERLINE) if IgnoredLine === l
     end
-    space = " " * @col_space
+
     if Line === l
       a = l.values_at(*@col_show)
       a.slice!(0, @st_col)
@@ -215,7 +228,7 @@ class LineDisplay
         clen = @len
         @sizes.zip(ms).each_with_index { |sm, i|
           chilighted = !highlighted && @col_highlight && ((@st_col + i)%2 == 1)
-          @attr.set if chilighted
+          @attr.on if chilighted
           s, m = *sm
           if m
             Ncurses.addstr(str = (" " * (s - m.string.length))[0, clen])
@@ -228,13 +241,13 @@ class LineDisplay
             clen -= str.length; break if clen <= 0
             Ncurses.addstr(str = m.post_match[0, clen])
             clen -= str.length; break if clen <= 0
-            Ncurses.addstr(str = space)
+            Ncurses.addstr(str = @sep)
             clen -= str.length; break if clen <= 0            
           else
             Ncurses.addstr(str = (@col_fmt % [s, a[i]])[0, clen])
             clen -= str.length; break if clen <= 0
           end
-          @attr.reset if chilighted
+          @attr.off if chilighted
         }
         @attr.reset if @col_highlight
         Ncurses.addstr(" " * clen) if clen > 0
@@ -327,7 +340,8 @@ class LineDisplay
     end
     @len -= @linec + @col_space if @line
     nbf = [@sizes.size - @st_col, 0].max
-    @col_fmt = "%*s#{' ' * @col_space}"
+    @sep = @separator.center(@col_space, @padding)
+    @col_fmt = "%*s#{@sep}"
     @format = @col_fmt * nbf
     return lines
   end

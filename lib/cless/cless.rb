@@ -83,6 +83,8 @@ class Manager
         when ?S: change_split_pattern
         when ?t: show_hide_headers
         when ?T: change_headers
+        when ?p: change_separator
+        when ?P: change_padding
         when ?^: change_headers_to_line_content
         when ?r: @data.clear_cache; Ncurses::endwin; Ncurses::doupdate
         when Ncurses::KEY_RESIZE: # Will break to refresh display
@@ -324,6 +326,18 @@ class Manager
     end
     @data.split_regexp = regexp
     "New split regexp: /#{regexp}/"
+  end
+
+  def change_separator
+    s = @display.prompt("Separator: ") or return nil
+    @display.separator = s
+    true
+  end
+
+  def change_padding
+    s = @display.prompt("Padding: ") or return nil
+    @display.padding = s
+    true
   end
 
   def display_help

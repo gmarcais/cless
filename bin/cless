@@ -25,6 +25,8 @@ options = {
   :hide => [],
   :tmp_dir => Dir.tmpdir,
   :options_db => [],
+  :separator => " ",
+  :padding => " ",
 }
 onoff = proc { |k| "(" + (options[k] ? "on" : "off") + ")" }
 val = proc { |k| "(" + (options[k] || "none").to_s + ")" }
@@ -106,6 +108,14 @@ loop do
     }
     opts.on("-T", "--tmp-dir DIR", "Temporary directory #{val[:tmp_dir]}") { |v|
       options[:tmp_dir] = v
+    }
+    opts.on("--separator SEP", "Separator caracter between columns " +
+            "(#{val[:separator]}") { |v|
+      v = v[0, 1]
+      options[:separator] = v unless v.empty? 
+    }
+    opts.on("--padding PAD", "Padding caracter (#{val[:padding]})") { |v|
+      options[:padding] = v
     }
     opts.on_tail("-v", "--version", "Show version and exit") {
       puts(Version.join('.'))

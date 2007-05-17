@@ -43,6 +43,8 @@ module Help
  t:                            toggle column names
  T:                            change column names (BROKEN)
  ^:                            use a line from file for column headers
+ p:                            change separator caracter
+ P:                            change padding caracter
  r:                            refresh display
  q:                            quit
 
