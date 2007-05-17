@@ -354,12 +354,12 @@ class LineDisplay
     end
   end
 
-  def prompt(ps)
+  def prompt(ps, init = "")
     stdscr = Ncurses.stdscr
     len = stdscr.getmaxx
     Ncurses.attrset(Ncurses.COLOR_PAIR(0))
     Ncurses.mvaddstr(stdscr.getmaxy-1, 0, ps.ljust(len)[0, len])
-    s, pos, key = read_line(stdscr.getmaxy-1, ps.length)
+    s, pos, key = read_line(stdscr.getmaxy-1, ps.length, :string => init)
     Ncurses.mvaddstr(stdscr.getmaxy-1, 0, " " * len)
     return (key == ?\e) ? nil : s
   rescue KeyboardInterrupt
@@ -368,6 +368,11 @@ class LineDisplay
 
   # read_line returns an array
   # [string, last_cursor_position_in_string, keycode_of_terminating_enter_key].
+  # options recognize:
+  # :window     What window to work with
+  # :max_len    Width of window
+  # :string     Initial value
+  # :cursor_pos Initial cursor position
   CTRL_A = ?a - ?a + 1
   CTRL_B = ?b - ?a + 1
   CTRL_D = ?d - ?a + 1
@@ -375,11 +380,12 @@ class LineDisplay
   CTRL_F = ?f - ?a + 1
   CTRL_H = ?h - ?a + 1
   CTRL_K = ?k - ?a + 1
-  def read_line(y, x,
-                window     = Ncurses.stdscr,
-                max_len    = (window.getmaxx - x - 1),
-                string     = "",
-                cursor_pos = 0)
+  def read_line(y, x, opts = {})
+    window     = opts[:window] || Ncurses.stdscr
+    max_len    = opts[:max_len] || (window.getmaxx - x - 1)
+    string     = opts[:string] || ""
+    cursor_pos = opts[:cursor_pos] || string.size
+
     loop do
       window.mvaddstr(y,x,string)
       window.move(y,x+cursor_pos)
