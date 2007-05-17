@@ -177,10 +177,9 @@ class LineDisplay
     lines = refresh_prepare
 
     i = 0
-    sline = 0 + (@column ? 1 : 0) + (@col_names ? 1 : 0)
     line_i = @data.line + 1
 
-    refresh_column_headers
+    sline = refresh_column_headers
 
     @data.lines(lines) { |l|
       highlighted = @line_highlight && (line_i%2 == 0)
@@ -289,35 +288,30 @@ class LineDisplay
   # Return byte column offset
   def refresh_column_headers
     if @column
-      cnumber = @col_show.collect { |x| (x + @col_start).to_s }
-      cnumber.compact!
+      cnumber = (0..(@sizes.size-1)).collect { |x| (x + @col_start).to_s }
       @sizes.max_update(cnumber.collect { |x| x.size })
-      cnumber.slice!(0, @st_col)
     end
     if @col_names
-      cnames = @col_headers.values_at(*@col_show)
-      cnames.compact!
-      @sizes.max_update(cnames.collect { |s| s.size })
-      cnames.slice!(0, @st_col)
+      @sizes.max_update(@col_headers.collect { |s| s.size })
     end
 
     @col_off = @sizes[0...@st_col].inject(0) { |a, x| a + x } + @st_col
     @sizes.slice!(0, @st_col)
 
+    sline = 0
     if @column
-      Ncurses.addstr(" " * (@linec + @col_space)) if @line
-      i = -1
-      cnumber.collect! { |x| i += 1; x.center(@sizes[i]) }
-      s = (@format % @sizes.zip(cnumber).flatten).ljust(@len)[0, @len]
-      Ncurses.addstr(s)
+      Ncurses.attron(Ncurses::A_UNDERLINE) if !@col_names
+      display_line(Line.new(cnumber), "", sline, false)
+      Ncurses.attroff(Ncurses::A_UNDERLINE) if !@col_names
+      sline += 1
     end
     if @col_names
-      Ncurses.addstr(" " * (@linec + 1)) if @line
-      i = -1
-      cnames.collect! { |x| i += 1; x.center(@sizes[i]) }
-      s = (@format % @sizes.zip(cnames).flatten).ljust(@len)[0, @len]
-      Ncurses.addstr(s)
+      Ncurses.attron(Ncurses::A_UNDERLINE)
+      display_line(Line.new(@col_headers), "", sline, false)
+      Ncurses.attroff(Ncurses::A_UNDERLINE)
+      sline += 1
     end
+    sline
   end
 
   def refresh_prepare
