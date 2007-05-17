@@ -20,7 +20,7 @@ module Help
  2:                            change background colors for highlight
  3:                            change attributes for hilight
  0:                            toggle 0-based / 1-based column numbering
- ^:                            enter first column number
+ ^:                            enter first column index
  c:                            show/hide the column numbers
  l:                            show/hide the line numbers (1 based)
  L:                            show byte offset instead of line number

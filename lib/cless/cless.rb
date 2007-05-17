@@ -45,58 +45,68 @@ class Manager
   def wait_for_key
     status = nil
     while !@done do
-      case k = Ncurses.getch
-      when Ncurses::KEY_DOWN, Ncurses::KEY_ENTER, ?e, ?\n, ?\r
-        @data.scroll(1); break
-      when Ncurses::KEY_UP, ?y: @data.scroll(-1); break
-      when " "[0], Ncurses::KEY_NPAGE, ?f: 
-          @data.scroll(@display.nb_lines - 1); break
-      when Ncurses::KEY_PPAGE, ?b: @data.scroll(1 - @display.nb_lines); break
-      when Ncurses::KEY_HOME, ?g, ?<: @data.goto_start; break
-      when Ncurses::KEY_END, ?G, ?>: @data.goto_end; break
-      when Ncurses::KEY_LEFT: @display.st_col -= 1; break
-      when Ncurses::KEY_RIGHT: @display.st_col += 1; break
-      when ?+: @display.col_space += 1; break
-      when ?-: @display.col_space -= 1; break
-      when ?F: status = goto_position; break
-      when ?%: status = column_format_prompt; break
-      when ?i: status = ignore_line_prompt; break
-      when ?I: status = ignore_line_remove_prompt; break
-      when ?o: @display.line_highlight = !@display.line_highlight; break
-      when ?O: @display.col_highlight = !@display.col_highlight; break
-      when ?c: @display.column = !@display.column; break
-      when ?l: @display.line = !@display.line; break
-      when ?L: @display.line_offset = !@display.line_offset; break;
-      when ?h: status = hide_columns; break
-      when ?H: status = hide_columns(:show); break
-      when ?0: @display.col_start = (@display.col_start == 0) ? 1 : 0; break
-      when ?): status = change_column_start; break
-      when ?1: @display.next_foreground; status = color_descr; break
-      when ?2: @display.next_background; status = color_descr; break
-      when ?3: @display.next_attribute; status = color_descr; break
-      when ?/: status = search(:forward); break
-      when ??: status = search(:backward); break
-      when ?n: status = repeat_search; break
-      when ?N: status = repeat_search(true); break
-      when ?s: status = save_file; break
-      when ?S: status = change_split_pattern; break
-      when ?t: status = show_hide_headers; break
-      when ?T: status = change_headers; break
-      when ?^: status = change_headers_to_line_content; break
-      when ?r: @data.clear_cache; Ncurses::endwin; Ncurses::doupdate; break
-      when Ncurses::KEY_RESIZE: break
-      when Ncurses::KEY_F1, ?a: status = display_help; break
-      when ?q: return nil
-      else 
-      end
+      status = 
+        case k = Ncurses.getch
+        when Ncurses::KEY_DOWN, Ncurses::KEY_ENTER, ?e, ?\n, ?\r
+          @data.scroll(1); true
+        when Ncurses::KEY_UP, ?y: @data.scroll(-1); true
+        when " "[0], Ncurses::KEY_NPAGE, ?f: 
+            @data.scroll(@display.nb_lines - 1); true
+        when Ncurses::KEY_PPAGE, ?b: @data.scroll(1 - @display.nb_lines); true
+        when Ncurses::KEY_HOME, ?g, ?<: @data.goto_start; true
+        when Ncurses::KEY_END, ?G, ?>: @data.goto_end; true
+        when Ncurses::KEY_LEFT: @display.st_col -= 1; true
+        when Ncurses::KEY_RIGHT: @display.st_col += 1; true
+        when ?+: @display.col_space += 1; true
+        when ?-: @display.col_space -= 1; true
+        when ?F: goto_position
+        when ?%: column_format_prompt
+        when ?i: ignore_line_prompt
+        when ?I: ignore_line_remove_prompt
+        when ?o: @display.line_highlight = !@display.line_highlight; true
+        when ?O: @display.col_highlight = !@display.col_highlight; true
+        when ?c: @display.column = !@display.column; true
+        when ?l: @display.line = !@display.line; true
+        when ?L: @display.line_offset = !@display.line_offset; true
+        when ?h: hide_columns
+        when ?H: hide_columns(:show)
+        when ?0: @display.col_start = (@display.col_start == 0) ? 1 : 0; true
+        when ?): change_column_start
+        when ?1: @display.next_foreground; color_descr
+        when ?2: @display.next_background; color_descr
+        when ?3: @display.next_attribute; color_descr
+        when ?/: search(:forward)
+        when ??: search(:backward)
+        when ?n: repeat_search
+        when ?N: repeat_search(true)
+        when ?s: save_file
+        when ?S: change_split_pattern
+        when ?t: show_hide_headers
+        when ?T: change_headers
+        when ?^: change_headers_to_line_content
+        when ?r: @data.clear_cache; Ncurses::endwin; Ncurses::doupdate
+        when Ncurses::KEY_RESIZE: # Will break to refresh display
+        when Ncurses::KEY_F1, ?a: display_help
+        when ?q: return nil
+        else 
+          next
+        end
+      
+      break
     end
     
-    @status = status ? status : ""
+    @status = 
+      case status
+      when String: status
+      when nil: "Cancelled"
+      else
+        ""
+      end
     return true
   end
 
   def hide_columns(show = false)
-    s = @display.prompt(show ? "Show: " : "Hide: ") or return "Canceled"
+    s = @display.prompt(show ? "Show: " : "Hide: ") or return nil
     a = s.split.collect { |x| x.to_i }
     if a.empty?
       @display.col_hide_clear
@@ -109,19 +119,19 @@ class Manager
   def show_hide_headers
     return "No names defined" if !@display.col_names && !@display.col_headers
     @display.col_names = !@display.col_names
-    return nil
+    true
   end
 
   def change_headers
-    s = @display.prompt("Pattern: ") or return "Canceled"
+    s = @display.prompt("Pattern: ") or return nil
     a = @db.find(s.strip) or return "Pattern not found"
     @display.col_headers = a
-    nil
+    true
   end
 
   def change_headers_to_line_content
     i = @data.line + 1
-    s = @display.prompt("Header line: ", i.to_s) or return "Canceled"
+    s = @display.prompt("Header line: ", i.to_s) or return nil
     i, i_bak = s.to_i, i
     return "Bad line number #{s}" if i < 1
     @data.goto_line(i)
@@ -132,14 +142,14 @@ class Manager
     return "Ignored line: can't use" if line.kind_of?(IgnoredLine)
     @display.col_headers = line.values_at(0..-1)
     @display.col_names = true
-    ""
+    true
   end
 
   # Return a status if an error occur, otherwise, returns nil
   def search(dir = :forward)
     s = @display.prompt("%s Search: " % 
                           [(dir == :forward) ? "Forward" : "Backward"])
-    s or return "Canceled"
+    s or return nil
     if s =~ /^\s*$/
       @data.search_clear
     else
@@ -151,7 +161,7 @@ class Manager
         return "Bad regexp: #{e.message}"
       end
     end
-    nil
+    true
   end
 
   # Return a status if an error occur, otherwise, returns nil
@@ -163,7 +173,7 @@ class Manager
             @search_dir
           end
     @data.repeat_search(dir) or return "Pattern not found!"
-    return nil
+    true
   end
 
   def color_descr
@@ -174,7 +184,7 @@ class Manager
 
   def save_file
     s = @display.prompt("Save to: ")
-    return "Canceled" if !s || s.empty?
+    return nil if !s || s.empty?
     begin
       File.link(@data.file_path, s)
       return "Hard linked"
@@ -196,7 +206,7 @@ class Manager
   end
 
   def goto_position
-    s = @display.prompt("Goto: ") or return "Canceled"
+    s = @display.prompt("Goto: ") or return nil
     s.strip!
     case s[-1]
     when ?p, ?%
@@ -214,11 +224,11 @@ class Manager
       return "Invalid line number" if i <= 0
       @data.goto_line(i)
     end
-    nil
+    true
   end
 
   def column_format_prompt
-    s = @display.prompt("Format: ") or return "Canceled"
+    s = @display.prompt("Format: ") or return nil
     s.strip!
     column_format(s)
   end
@@ -241,13 +251,13 @@ class Manager
   end
 
   def change_column_start
-    s = @display.prompt("First column: ") or return "Canceled"
+    s = @display.prompt("First column: ") or return nil
     @display.col_start = s.to_i
-    ""
+    true
   end
 
   def ignore_line_prompt
-    s = @display.prompt("Ignore: ") or return "Canceled"
+    s = @display.prompt("Ignore: ") or return nil
     s.strip!
     ignore_line(s)
   end
@@ -286,7 +296,7 @@ class Manager
   end
 
   def ignore_line_remove_prompt
-    s = @display.prompt("Remove ignore: ") or return "Canceled"
+    s = @display.prompt("Remove ignore: ") or return nil
     s.strip!
     ignore_line_remove(s)
   end
@@ -313,13 +323,13 @@ class Manager
       return "Invalid regexp /#{s}/: #{e.message}"
     end
     @data.split_regexp = regexp
-    return "New split regexp: /#{regexp}/"
+    "New split regexp: /#{regexp}/"
   end
 
   def display_help
     Ncurses.endwin
     Help.display
-    nil
+    true
   rescue => e
     e.message
   ensure
