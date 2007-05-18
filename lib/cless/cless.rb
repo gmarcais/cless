@@ -237,7 +237,7 @@ class Manager
   
   def column_format(s)
     cols, fmt = s.split(/:/, 2)
-    inc = @display.col_zero ? 0 : 1
+    inc = @display.col_start
     if cols
       cols = cols.split.collect { |x| x.to_i - inc }
       cols.delete_if { |x| x < 0 }
