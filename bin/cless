@@ -71,7 +71,7 @@ loop do
     opts.on("--background COLOR", "Background color for hilight #{val[:background]}") { |v|
       options[:background] = v
     }
-    opts.on("--col-space NB", "Number of spaces between columns " +
+    opts.on("--column-space NB", "Number of spaces between columns " +
             val[:col_space]) { |v|
       options[:col_space] = v.to_i
     }
