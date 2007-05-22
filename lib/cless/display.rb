@@ -296,9 +296,7 @@ class LineDisplay
     end
   end
 
-  # Modifies sizes
-  # linec: size of line number column
-  # Return byte column offset
+  # Modifies @sizes
   def refresh_column_headers
     if @column
       cnumber = (0..(@sizes.size-1)).collect { |x| (x + @col_start).to_s }
@@ -309,6 +307,8 @@ class LineDisplay
     end
 
     @col_off = @sizes[0...@st_col].inject(0) { |a, x| a + x } + @st_col
+
+    @sizes = @sizes.values_at(*@col_show)
     @sizes.slice!(0, @st_col)
 
     sline = 0
@@ -333,13 +333,12 @@ class LineDisplay
     @sizes = @data.sizes.dup
     @col_show = (0..(@sizes.size-1)).to_a
     @col_show -= @col_hide if @col_hide
-    @sizes = @sizes.values_at(*@col_show)
     if @line
       @linec = @line_offset ? @data.max_offset : (@data.line + lines)
       @linec = @linec.to_s.size
     end
     @len -= @linec + @col_space if @line
-    nbf = [@sizes.size - @st_col, 0].max
+    nbf = [@col_show.size - @st_col, 0].max
     @sep = @separator.center(@col_space, @padding)
     @col_fmt = "%*s#{@sep}"
     @format = @col_fmt * nbf
