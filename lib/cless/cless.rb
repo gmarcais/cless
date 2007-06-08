@@ -5,6 +5,7 @@ require 'tempfile'
 require 'cless/data'
 require 'cless/display'
 require 'cless/optionsdb'
+require 'cless/export'
 require 'cless/help'
 
 class String
@@ -81,6 +82,7 @@ class Manager
         when ?N: repeat_search(true)
         when ?s: save_file
         when ?S: change_split_pattern
+        when ?E: export
         when ?t: show_hide_headers
         when ?T: change_headers
         when ?p: change_separator
@@ -348,5 +350,21 @@ class Manager
     e.message
   ensure
     Ncurses.refresh
+  end
+
+  def export
+    s = @display.prompt("Format: ") or return nil
+    mod = Export::Format[s.strip]
+    return "Unknown format '#{s}'" unless mod
+    s = @display.prompt("Lines: ") or return nil
+    ls, le = s.split.map { |x| x.to_i }
+    s = @display.prompt("File: ") or return nil
+    len = open(s, "w") do |fd|
+      mod.export(fd, ls..le, @data, @display)
+      fd.pos
+    end
+    "Wrote #{len} bytes"
+  rescue => e
+    return "Error: #{e.message}"
   end
 end
