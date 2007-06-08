@@ -17,7 +17,7 @@ module Export::TeX
   end
 
   def __export(io, line_s, line_e, data, display)
-    current_line = data.line
+    current_line = data.line + 1
     nb_lines = line_e - line_s + 1
     data.goto_line(line_s)
     data.cache_fill(nb_lines)
