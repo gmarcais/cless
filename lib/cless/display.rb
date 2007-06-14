@@ -241,13 +241,13 @@ class LineDisplay
             clen -= str.length; break if clen <= 0
             Ncurses.addstr(str = m.post_match[0, clen])
             clen -= str.length; break if clen <= 0
-            Ncurses.addstr(str = @sep)
-            clen -= str.length; break if clen <= 0            
           else
-            Ncurses.addstr(str = (@col_fmt % [s, a[i]])[0, clen])
+            Ncurses.addstr(str = ("%*s" % [s, a[i]])[0, clen])
             clen -= str.length; break if clen <= 0
           end
           @attr.off if chilighted
+          Ncurses.addstr(str = @sep)
+          clen -= str.length; break if clen <= 0            
         }
         @attr.reset if @col_highlight
         Ncurses.addstr(" " * clen) if clen > 0

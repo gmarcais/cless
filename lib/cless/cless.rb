@@ -353,16 +353,11 @@ class Manager
   end
 
   def export
-    s = @display.prompt("Format: ") or return nil
-    mod = Export::Format[s.strip]
-    return "Unknown format '#{s}'" unless mod
+    format = @display.prompt("Format: ") or return nil
     s = @display.prompt("Lines: ") or return nil
     ls, le = s.split.map { |x| x.to_i }
-    s = @display.prompt("File: ") or return nil
-    len = open(s, "w") do |fd|
-      mod.export(fd, ls..le, @data, @display)
-      fd.pos
-    end
+    file = @display.prompt("File: ") or return nil
+    len = Export.export(file, format, ls..le, @data, @display)
     "Wrote #{len} bytes"
   rescue => e
     return "Error: #{e.message}"
