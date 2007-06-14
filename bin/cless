@@ -165,6 +165,7 @@ class KeyboardInterrupt < StandardError; end
 trap("SIGTERM") { exit }
 trap("SIGINT") { raise KeyboardInterrupt, "Ctrl-C" }
 trap("SIGQUIT") { exit }
+trap("SIGHUP") { exit }
 
 ptr = begin
         ARGV[0] ? MappedFile.new(ARGV[0]) : MappedStream.new(stdin, options)
