@@ -39,6 +39,7 @@ module Help
  n:                            repeat previous search
  N:                            repeat previous search, reversed direction
  s:                            save content to file
+ E:                            export content to some format (tex, csv)
  S:                            change split regexp
  t:                            toggle column names
  T:                            change column names (BROKEN)
