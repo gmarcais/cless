@@ -2,6 +2,7 @@ module Export
   Format = {}
 
   def self.export(file, format, lines, data, display)
+    current_line = nil
     mod = Format[format] or raise "Unsupported format '#{format}'"
     line_s = lines.begin
     line_e = lines.end
@@ -45,8 +46,10 @@ module Export
       return fd.pos
     }
   ensure
-    data.clear_cache
-    data.goto_line(current_line)
+    if current_line
+      data.clear_cache
+      data.goto_line(current_line)
+    end
   end
 end
 
