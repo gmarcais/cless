@@ -357,7 +357,13 @@ class Manager
     s = @display.prompt("Lines: ") or return nil
     ls, le = s.split.map { |x| x.to_i }
     file = @display.prompt("File: ") or return nil
-    len = Export.export(file, format, ls..le, @data, @display)
+    qs = Export.questions(format)
+    opts = {}
+    qs && qs.each { |k, pt, init|
+      s = @display.prompt(pt + ": ", init) or return nil
+      opts[k] = s
+    }
+    len = Export.export(file, format, ls..le, @data, @display, opts)
     "Wrote #{len} bytes"
   rescue => e
     return "Error: #{e.message}"

@@ -1,7 +1,11 @@
 module Export
   Format = {}
 
-  def self.export(file, format, lines, data, display)
+  def self.questions(format)
+    Format[format]::Questions rescue nil
+  end
+
+  def self.export(file, format, lines, data, display, opts = {})
     current_line = nil
     mod = Format[format] or raise "Unsupported format '#{format}'"
     line_s = lines.begin
@@ -42,7 +46,7 @@ module Export
     
     
     File.open(file, "w") { |fd|
-      mod.export(fd, nb_col, lines, columns)
+      mod.export(fd, nb_col, lines, columns, opts)
       return fd.pos
     }
   ensure
@@ -55,8 +59,9 @@ end
 
 module Export::TeX
   Export::Format["tex"] = self
+  Questions = []
 
-  def self.export(io, nb_col, lines, headers)
+  def self.export(io, nb_col, lines, headers, opts = {})
     io << "\\begin{tabular}{|" << (["c"] * nb_col).join("|") << "|}\\hline\n"
     if headers
       io << headers.join(" & ") 
@@ -72,11 +77,14 @@ end
 
 module Export::CSV
   Export::Format["csv"] = self
+  Questions = [[ :separator, "Separator", ","]]
 
-  def self.export(io, nb_col, lines, headers)
+  def self.export(io, nb_col, lines, headers, opts = {})
+    sep = opts[:separator] || ','
+    raise "CSV separator must be 1 character" if sep.length != 1
     require 'csv'
     
-    CSV::Writer.generate(io) { |csv|
+    CSV::Writer.generate(io, sep) { |csv|
       csv << headers if headers
       lines.each { |a| csv << a }
     }
