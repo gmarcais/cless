@@ -3,7 +3,7 @@
 require 'cless/cless'
 require 'optparse'
 
-Version = [0, 3, 9]
+Version = [0, 3, 10]
 
 options = {
   :column => false,
