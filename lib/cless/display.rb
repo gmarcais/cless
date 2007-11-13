@@ -8,7 +8,7 @@ end
 
 class Attr
   NAME2COLORS = {
-    "none" => :none,
+    "none" => -1,
     "black" => Ncurses::COLOR_BLACK,
     "red" =>  Ncurses::COLOR_RED,
     "green" => Ncurses::COLOR_GREEN,
@@ -79,12 +79,9 @@ class Attr
   def inc(c, ary); ary[((ary.index(c) || 0)+1) % ary.size]; end
 
   def update_pair
-    if @foreground != :none && @background != :none
-      Ncurses.init_pair(1, @foreground, @background)
-      @pair = Ncurses.COLOR_PAIR(1)
-    else
-      @pair = 0
-    end
+    Ncurses.use_default_colors
+    Ncurses.init_pair(1, @foreground, @background)
+    @pair = Ncurses.COLOR_PAIR(1)
   end
 end
 
