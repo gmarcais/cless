@@ -295,6 +295,7 @@ class LineDisplay
 
   # Modifies @sizes
   def refresh_column_headers
+    @col_names &= @col_headers  # Disable col_names if no headers
     if @column
       cnumber = (0..(@sizes.size-1)).collect { |x| (x + @col_start).to_s }
       @sizes.max_update(cnumber.collect { |x| x.size })
