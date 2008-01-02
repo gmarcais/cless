@@ -234,8 +234,7 @@ begin
     begin
       manager.change_headers_to_line(options[:header_line])
     rescue => e
-      $stderr.puts("--header-line #{options[:header_line]}: #{e.message}",
-                   "Ignore option")
+      $stderr.puts("--header-line #{options[:header_line]}: #{e.message}")
     end
   end
   data.goto_line(options[:start_line])

@@ -261,7 +261,7 @@ class Manager
       else
         cols.each { |c| @data.unset_format_column(c) }
       end
-      @data.clear_cache
+      @data.refresh
     end
     cols = @data.formatted_column_list.sort.collect { |x| x + inc }
     "Formatted: " + cols.join(" ")
@@ -308,7 +308,7 @@ class Manager
         return "Bad pattern #{spat}"
       end
     end
-    @data.clear_cache
+    @data.refresh
     "Ignored: " + ignore_line_list_display(@data.ignore_pattern_list).join(" ")
   end
 
@@ -326,7 +326,7 @@ class Manager
         opat && @data.remove_ignore(opat)
       end
     end
-    @data.clear_cache
+    @data.refresh
     "Ignored: " + ignore_line_list_display(@data.ignore_pattern_list).join(" ")
   end
 

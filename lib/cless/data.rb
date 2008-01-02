@@ -376,6 +376,12 @@ class MapData
     @sizes.clear
   end
 
+  def refresh
+    size = @cache.size
+    clear_cache
+    cache_fill(size)
+  end
+
   FMT_LETTERS = "bcdEefGgiosuXx"
   FMT_REGEXP = /(?:^|[^%])%[ \d#+*.-]*([#{FMT_LETTERS}])/;
   FLOAT_PROC = proc { |x| x.to_f }
