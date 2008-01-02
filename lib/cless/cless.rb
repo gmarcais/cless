@@ -20,6 +20,8 @@ class String
 end
 
 class Manager
+  class Error < StandardError; end
+
   def initialize(data, display, curses, db)
     @data = data
     @display = display
@@ -136,14 +138,26 @@ class Manager
   def change_headers_to_line_content_prompt
     i = @data.line + 1
     s = @display.prompt("Header line: ", i.to_s) or return nil
-    i, i_bak = s.to_i, i
-    return "Bad line number #{s}" if i < 1
+    s.strip!
+    return "Bad line number #{s}" unless s =~ /^\d+$/
+    i = s.to_i
+    begin
+      change_headers_to_line(i)
+    rescue => e
+      return e.message
+    end
+    true
+  end
+
+  def change_headers_to_line(i)
+    raise Error, "Bad line number #{i}" if i < 1
+    i_bak = @data.line + 1
     @data.goto_line(i)
     line = nil
     @data.lines(1) { |l| line = l }
     @data.goto_line(i_bak)     # Go back
-    return "No such line" unless line
-    return "Ignored line: can't use" if line.kind_of?(IgnoredLine)
+    raise Error, "No such line" unless line
+    raise Error, "Ignored line: can't use" if line.kind_of?(IgnoredLine)
     @display.col_headers = line.values_at(0..-1)
     @display.col_names = true
     true
