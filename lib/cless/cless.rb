@@ -22,10 +22,9 @@ end
 class Manager
   class Error < StandardError; end
 
-  def initialize(data, display, curses, db)
+  def initialize(data, display, db)
     @data = data
     @display = display
-    @curses = curses
     @db = db
     @done = false
     @status = ""

@@ -138,7 +138,12 @@ class LineDisplay
     @col_hide = nil
     @col_headers = nil          # Actual names
     @st_col = 0
-    @attr = Attr.new(args)
+    @args = args
+  end
+
+  def initialize_curses
+    @attr = Attr.new(@args)
+    @args = nil
   end
 
   def nb_lines

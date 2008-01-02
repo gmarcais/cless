@@ -27,6 +27,8 @@ options = {
   :options_db => [],
   :separator => " ",
   :padding => " ",
+  :start_line => 1,
+  :header_line => nil,
 }
 onoff = proc { |k| "(" + (options[k] ? "on" : "off") + ")" }
 val = proc { |k| "(" + (options[k] || "none").to_s + ")" }
@@ -88,8 +90,16 @@ loop do
             "first column index #{val[:col_start]}") { |v|
       options[:col_start] = v
     }
+    opts.on("--start-line LINE", Integer,
+            "first line to display #{val[:start_line]}") { |v|
+      options[:start_line] = v
+    }
     opts.on("--names NAMES", "Comma separated list of column names") { |v|
       options[:names] = v.split_with_quotes("\s,")
+    }
+    opts.on("--header-line LINE", Integer,
+            "use given line as headers") { |v|
+      options[:header_line] = v.to_i
     }
     opts.on("--options-db DB", "Path of a options db") { |v|
       options[:options_db] << v
@@ -210,18 +220,29 @@ begin
     split_regexp = nil
   end
   
+  data = MapData.new(ptr, split_regexp)
+  display = LineDisplay.new(data, options)
+  manager = Manager.new(data, display, db)
+  data.cache_fill(1)
+  
+  display.col_headers = options[:names]
+  display.col_hide(*options[:hide])
+  options[:formats].each { |fmt| manager.column_format(fmt) }
+  options[:ignore].each { |pat| manager.ignore_line(pat) }
+  manager.ignore_line("1-#{header_l}") if header_l && header_l > 0
+  if options[:header_line]
+    begin
+      manager.change_headers_to_line(options[:header_line])
+    rescue => e
+      $stderr.puts("--header-line #{options[:header_line]}: #{e.message}",
+                   "Ignore option")
+    end
+  end
+  data.goto_line(options[:start_line])
+
   # Start curses application
   Curses.new do |curses|
-    data = MapData.new(ptr, split_regexp)
-    display = LineDisplay.new(data, options)
-    manager = Manager.new(data, display, curses, db)
-
-    display.col_headers = options[:names]
-    display.col_hide(*options[:hide])
-    options[:formats].each { |fmt| manager.column_format(fmt) }
-    options[:ignore].each { |pat| manager.ignore_line(pat) }
-    manager.ignore_line("1-#{header_l}") if header_l && header_l > 0
-
+    display.initialize_curses
     manager.main_loop
   end
 rescue KeyboardInterrupt
