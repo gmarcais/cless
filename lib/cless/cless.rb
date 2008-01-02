@@ -60,7 +60,7 @@ class Manager
         when Ncurses::KEY_RIGHT: @display.st_col += 1; true
         when ?+: @display.col_space += 1; true
         when ?-: @display.col_space -= 1; true
-        when ?F: goto_position
+        when ?F: goto_position_prompt
         when ?%: column_format_prompt
         when ?i: ignore_line_prompt
         when ?I: ignore_line_remove_prompt
@@ -69,25 +69,25 @@ class Manager
         when ?c: @display.column = !@display.column; true
         when ?l: @display.line = !@display.line; true
         when ?L: @display.line_offset = !@display.line_offset; true
-        when ?h: hide_columns
-        when ?H: hide_columns(:show)
+        when ?h: hide_columns_prompt
+        when ?H: hide_columns_prompt(:show)
         when ?0: @display.col_start = (@display.col_start == 0) ? 1 : 0; true
-        when ?): change_column_start
+        when ?): change_column_start_prompt
         when ?1: @display.next_foreground; color_descr
         when ?2: @display.next_background; color_descr
         when ?3: @display.next_attribute; color_descr
-        when ?/: search(:forward)
-        when ??: search(:backward)
+        when ?/: search_prompt(:forward)
+        when ??: search_prompt(:backward)
         when ?n: repeat_search
         when ?N: repeat_search(true)
-        when ?s: save_file
-        when ?S: change_split_pattern
-        when ?E: export
+        when ?s: save_file_prompt
+        when ?S: change_split_pattern_prompt
+        when ?E: export_prompt
         when ?t: show_hide_headers
-        when ?T: change_headers
-        when ?p: change_separator
-        when ?P: change_padding
-        when ?^: change_headers_to_line_content
+        when ?T: change_headers_prompt
+        when ?p: change_separator_prompt
+        when ?P: change_padding_prompt
+        when ?^: change_headers_to_line_content_prompt
         when ?r: @data.clear_cache; Ncurses::endwin; Ncurses::doupdate
         when Ncurses::KEY_RESIZE: # Will break to refresh display
         when Ncurses::KEY_F1, ?a: display_help
@@ -109,7 +109,7 @@ class Manager
     return true
   end
 
-  def hide_columns(show = false)
+  def hide_columns_prompt(show = false)
     s = @display.prompt(show ? "Show: " : "Hide: ") or return nil
     a = s.split.collect { |x| x.to_i }
     if a.empty?
@@ -126,14 +126,14 @@ class Manager
     true
   end
 
-  def change_headers
+  def change_headers_prompt
     s = @display.prompt("Pattern: ") or return nil
     a = @db.find(s.strip) or return "Pattern not found"
     @display.col_headers = a
     true
   end
 
-  def change_headers_to_line_content
+  def change_headers_to_line_content_prompt
     i = @data.line + 1
     s = @display.prompt("Header line: ", i.to_s) or return nil
     i, i_bak = s.to_i, i
@@ -150,7 +150,7 @@ class Manager
   end
 
   # Return a status if an error occur, otherwise, returns nil
-  def search(dir = :forward)
+  def search_prompt(dir = :forward)
     s = @display.prompt("%s Search: " % 
                           [(dir == :forward) ? "Forward" : "Backward"])
     s or return nil
@@ -186,7 +186,7 @@ class Manager
       [descr[:foreground] || "-", descr[:background] || "-", descr[:attribute] || "-"]
   end
 
-  def save_file
+  def save_file_prompt
     s = @display.prompt("Save to: ")
     return nil if !s || s.empty?
     begin
@@ -209,7 +209,7 @@ class Manager
     "Wrote #{nb_bytes} bytes"
   end
 
-  def goto_position
+  def goto_position_prompt
     s = @display.prompt("Goto: ") or return nil
     s.strip!
     case s[-1]
@@ -254,7 +254,7 @@ class Manager
     "Formatted: " + cols.join(" ")
   end
 
-  def change_column_start
+  def change_column_start_prompt
     s = @display.prompt("First column: ") or return nil
     @display.col_start = s.to_i
     true
@@ -317,7 +317,7 @@ class Manager
     "Ignored: " + ignore_line_list_display(@data.ignore_pattern_list).join(" ")
   end
 
-  def change_split_pattern
+  def change_split_pattern_prompt
     s = @display.prompt("Split regexp(/#{@data.split_regexp}/): ")
     return "Not changed" if !s
     begin
@@ -330,13 +330,13 @@ class Manager
     "New split regexp: /#{regexp}/"
   end
 
-  def change_separator
+  def change_separator_prompt
     s = @display.prompt("Separator: ") or return nil
     @display.separator = s
     true
   end
 
-  def change_padding
+  def change_padding_prompt
     s = @display.prompt("Padding: ") or return nil
     @display.padding = s
     true
@@ -352,7 +352,7 @@ class Manager
     Ncurses.refresh
   end
 
-  def export
+  def export_prompt
     format = @display.prompt("Format: ") or return nil
     s = @display.prompt("Lines: ") or return nil
     ls, le = s.split.map { |x| x.to_i }
