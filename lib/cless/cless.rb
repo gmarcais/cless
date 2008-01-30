@@ -28,6 +28,7 @@ class Manager
     @db = db
     @done = false
     @status = ""
+    @prebuff = ""
   end
 
   def done; @done = true; end
@@ -39,14 +40,17 @@ class Manager
     while !@done do
       @data.cache_fill(@display.nb_lines)
       @display.refresh
-      @display.wait_status(@status)
       wait_for_key or break
     end
   end
+
+  def prebuff; @prebuff.empty? ? nil : @prebuff.to_i; end
   
   def wait_for_key
     status = nil
     while !@done do
+      @display.wait_status(@status, ":" + @prebuff)
+      nc = false        # Set to true if no data change
       status = 
         case k = Ncurses.getch
         when Ncurses::KEY_DOWN, Ncurses::KEY_ENTER, ?e, ?\n, ?\r
@@ -72,11 +76,12 @@ class Manager
         when ?L: @display.line_offset = !@display.line_offset; true
         when ?h: hide_columns_prompt
         when ?H: hide_columns_prompt(:show)
-        when ?0: @display.col_start = (@display.col_start == 0) ? 1 : 0; true
         when ?): change_column_start_prompt
-        when ?1: @display.next_foreground; color_descr
-        when ?2: @display.next_background; color_descr
-        when ?3: @display.next_attribute; color_descr
+# Need to find new binding for those
+#        when ?0: @display.col_start = (@display.col_start == 0) ? 1 : 0; true
+#        when ?1: @display.next_foreground; color_descr
+#        when ?2: @display.next_background; color_descr
+#        when ?3: @display.next_attribute; color_descr
         when ?/: search_prompt(:forward)
         when ??: search_prompt(:backward)
         when ?n: repeat_search
@@ -90,16 +95,18 @@ class Manager
         when ?P: change_padding_prompt
         when ?^: change_headers_to_line_content_prompt
         when ?r: @data.clear_cache; Ncurses::endwin; Ncurses::doupdate
-        when Ncurses::KEY_RESIZE: # Will break to refresh display
+        when Ncurses::KEY_RESIZE: nc = true # Will break to refresh display
         when Ncurses::KEY_F1, ?a: display_help
+        when ?0..?9: @prebuff += k.chr; next
         when ?q: return nil
         else 
           next
         end
-      
+      $log.puts(k)
       break
     end
     
+    @prebuff = "" unless nc
     @status = 
       case status
       when String: status

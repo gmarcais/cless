@@ -348,8 +348,7 @@ class LineDisplay
     return lines
   end
 
-  def wait_status(status)
-    wprompt = ":"
+  def wait_status(status, wprompt)
     len = Ncurses.stdscr.getmaxx
     Ncurses.attrset(Ncurses::A_NORMAL)
     Ncurses.mvaddstr(Ncurses.stdscr.getmaxy-1, 0, wprompt)
