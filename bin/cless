@@ -12,7 +12,11 @@ options = {
   :line_offset => false,
   :col_space => 1,
   :line_highlight => false,
+  :line_highlight_period => 2,
+  :line_highlight_shift => 0,
   :col_highlight => false,
+  :col_highlight_period => 2,
+  :col_highlight_shift => 0,
   :parse_header => true,
   :foreground => "none",
   :background => "none",
@@ -55,9 +59,25 @@ loop do
             onoff[:line_highlight]) { |v|
       options[:line_highlight] = v
     }
+    opts.on("--line-period PERIOD", "Hilight period for lines " +
+            val[:line_highlight_period]) { |v|
+      options[:line_highlight_period] = v.to_i
+    }
+    opts.on("--line-shift SHIFT", "Hilight shift for lines " +
+            val[:line_highlight_shift]) { |v|
+      options[:line_highlight_shift] = v.to_i
+    }
     opts.on("--[no-]column-highlight", "Hilight every other column " +
             onoff[:col_highlight]) { |v|
       options[:col_highlight] = v
+    }
+    opts.on("--column-period PERIOD", "Hilight period for columns " +
+            val[:col_highlight_period]) { |v|
+      options[:col_highlight_period] = v.to_i
+    }
+    opts.on("--column-shift SHIFT", "Hilight shift for columns " +
+            val[:col_highlight_shift]) { |v|
+      options[:col_highlight_shift] = v.to_i
     }
     opts.on("--[no-]column-names", "Display column names " +
               "#{onoff[:col_names]}") { |v|
