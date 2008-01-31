@@ -22,6 +22,38 @@ end
 class Manager
   class Error < StandardError; end
 
+  Commands = {
+    "scroll_forward_line" => :scroll_forward_line,
+    "scroll_backward_line" => :scroll_backward_line,
+    "scroll_forward_half_screen" => :scroll_forward_half_screen,
+    "scroll_backward_half_screen" => :scroll_backward_half_screen,
+    "scroll_right" => :scroll_right,
+    "scroll_left" => :scroll_left,
+    "hide_columns" => :hide_columns_prompt,
+    "unhide_columns" => :unhide_columns,
+    "toggle_headers" => :show_hide_headers,
+    "change_headers" => :change_headers_prompt,
+    "change_headers_to_line" => :change_headers_to_line_content_prompt,
+    "toggle_line_highlight" => :toggle_line_highlight,
+    "toggle_column_highlight" => :toggle_column_highlight,
+    "shift_line_highlight" => :shift_line_highlight,
+    "shift_column_highlight" => :shift_column_highlight,
+    "forward_search" => :forward_search,
+    "backward_search" => :backward_search,
+    "repeat_search" => :repeat_search,
+    "save_to_file" => :save_file_prompt,
+    "goto_position" => :goto_position_prompt,
+    "format_column" => :column_format_prompt,
+    "column_start_index" => :change_column_start_prompt,
+    "ignore_line" => :ignore_line_prompt,
+    "remove_ignore_line" => :ignore_line_remove_prompt,
+    "split_regexp" => :change_split_pattern_prompt,
+    "separator_character" => :change_separator_prompt,
+    "separator_padding" => :change_padding_prompt,
+    "export" => :export_prompt,
+    "help" => :display_help,
+  }
+
   def initialize(data, display, db)
     @data = data
     @display = display
@@ -113,6 +145,7 @@ class Manager
         when ?0..?9: @prebuff += k.chr; next
         when Ncurses::KEY_BACKSPACE, ?\b
           esc ? @prebuff = "" : @prebuff.chop!; next
+        when ?:: long_command
         when ?q: return nil
         when Curses::ESC: esc = true; next
         else 
@@ -130,6 +163,35 @@ class Manager
         ""
       end
     return true
+  end
+
+  # This is a little odd. Does it belong to display more?
+  def long_command
+    sub = CommandSubWindow.new(Commands.keys.map { |s| s.size }.max)
+    old_prompt_line = ""
+    sub.new_list(Commands.keys.sort)
+    extra = proc {
+      if old_prompt_line != @display.prompt_line
+        old_prompt_line = @display.prompt_line.dup
+        reg = Regexp.new(Regexp.quote(old_prompt_line))
+        sub.new_list(Commands.keys.grep(reg).sort)
+        Ncurses.refresh
+      end
+    }
+    other = proc { |ch|
+      r = true
+      case ch
+      when Ncurses::KEY_DOWN, Curses::CTRL_N: sub.next_item
+      when Ncurses::KEY_UP, Curses::CTRL_P: sub.previous_item
+      else
+        r = false
+      end
+      Ncurses.refresh if r
+    }
+    s = @display.prompt("Filter: ", :extra => extra, :other => other)
+    sub.destroy
+    @display.refresh
+    self.__send__(Commands[sub.item]) if s
   end
 
   def scroll_forward_line
@@ -187,6 +249,7 @@ class Manager
     true
   end
 
+  def unhide_columns; hide_columns_prompt(true); end
   def hide_columns_prompt(show = false)
     s = @display.prompt(show ? "Show: " : "Hide: ") or return nil
     a = s.split.collect { |x| x.to_i }
@@ -213,7 +276,7 @@ class Manager
 
   def change_headers_to_line_content_prompt
     i = @data.line + 1
-    s = @display.prompt("Header line: ", i.to_s) or return nil
+    s = @display.prompt("Header line: ", :init => i.to_s) or return nil
     s.strip!
     return "Bad line number #{s}" unless s =~ /^\d+$/
     i = s.to_i
@@ -270,6 +333,8 @@ class Manager
   end
 
   # Return a status if an error occur, otherwise, returns nil
+  def forward_search; search_prompt(:forward); end
+  def backward_search; search_prompt(:backward); end
   def search_prompt(dir = :forward)
     s = @display.prompt("%s Search: " % 
                           [(dir == :forward) ? "Forward" : "Backward"])
@@ -485,7 +550,7 @@ class Manager
     qs = Export.questions(format)
     opts = {}
     qs && qs.each { |k, pt, init|
-      s = @display.prompt(pt + ": ", init) or return nil
+      s = @display.prompt(pt + ": ", :init => init) or return nil
       opts[k] = s
     }
     len = Export.export(file, format, ls..le, @data, @display, opts)

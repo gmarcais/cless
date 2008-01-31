@@ -129,6 +129,7 @@ class LineDisplay
     :padding => " ",            # Padding caracter
   }
   attr_accessor *DEFAULTS.keys
+  attr_reader :prompt_line
 
   def separator=(s)
     @separator = (!s || s.empty?) ? " " : s
@@ -373,12 +374,12 @@ class LineDisplay
     end
   end
 
-  def prompt(ps, init = "")
+  def prompt(ps, opts = {})
     stdscr = Ncurses.stdscr
     len = stdscr.getmaxx
     Ncurses.attrset(Ncurses.COLOR_PAIR(0))
     Ncurses.mvaddstr(stdscr.getmaxy-1, 0, ps.ljust(len)[0, len])
-    s, pos, key = read_line(stdscr.getmaxy-1, ps.length, :string => init)
+    s, pos, key = read_line(stdscr.getmaxy-1, ps.length, opts)
     Ncurses.mvaddstr(stdscr.getmaxy-1, 0, " " * len)
     return (key == ?\e) ? nil : s
   rescue KeyboardInterrupt
@@ -393,52 +394,114 @@ class LineDisplay
   # :string     Initial value
   # :cursor_pos Initial cursor position
   def read_line(y, x, opts = {})
-    window     = opts[:window] || Ncurses.stdscr
-    max_len    = opts[:max_len] || (window.getmaxx - x - 1)
-    string     = opts[:string] || ""
-    cursor_pos = opts[:cursor_pos] || string.size
+    window       = opts[:window] || Ncurses.stdscr
+    max_len      = opts[:max_len] || (window.getmaxx - x - 1)
+    @prompt_line = opts[:init] || ""
+    cursor_pos   = opts[:cursor_pos] || @prompt_line.size
+    other        = opts[:other]
+    extra        = opts[:extra]
 
     loop do
-      window.mvaddstr(y,x,string)
+      window.mvaddstr(y,x,@prompt_line)
       window.move(y,x+cursor_pos)
+
+      extra.call if extra
+
       ch = window.getch
       case ch
       when Ncurses::KEY_LEFT, Curses::CTRL_B
         cursor_pos = [0, cursor_pos-1].max
       when Ncurses::KEY_RIGHT, Curses::CTRL_F
-        cursor_pos = [string.length, cursor_pos+1].min
+        cursor_pos = [@prompt_line.length, cursor_pos+1].min
       when Ncurses::KEY_ENTER, ?\n, ?\r
-        return string, cursor_pos, ch # Which return key has been used?
+        return @prompt_line, cursor_pos, ch # Which return key has been used?
       when Ncurses::KEY_HOME, Curses::CTRL_A
         cursor_pos = 0
       when Ncurses::KEY_END, Curses::CTRL_E
-        cursor_pos = [max_len, string.length].min
+        cursor_pos = [max_len, @prompt_line.length].min
       when Ncurses::KEY_DC, Curses::CTRL_D
-        string.slice!(cursor_pos)
-        window.mvaddstr(y, x+string.length, " ")
+        @prompt_line.slice!(cursor_pos)
+        window.mvaddstr(y, x+@prompt_line.length, " ")
       when Curses::CTRL_K
-        window.mvaddstr(y, x, " " * string.length)
-        string = ""
+        window.mvaddstr(y, x, " " * @prompt_line.length)
+        @prompt_line = ""
       when Ncurses::KEY_BACKSPACE, ?\b
         if cursor_pos > 0
           cursor_pos -= 1
-          string.slice!(cursor_pos)
-          window.mvaddstr(y, x+string.length, " ")
+          @prompt_line.slice!(cursor_pos)
+          window.mvaddstr(y, x+@prompt_line.length, " ")
         else
-          return "", 0, ch
+          return "", 0, ?\e
         end
       when ?\e          # ESCAPE
         return "", 0, ch
       when " "[0]..255 # remaining printables
         if (cursor_pos < max_len)
-          string[cursor_pos,0] = ch.chr
+          @prompt_line[cursor_pos,0] = ch.chr
           cursor_pos += 1
         else
           Ncurses.beep
         end
       else
+        other[ch] if other
       end
     end    	
-    
   end 
+end
+
+class CommandSubWindow
+  def initialize(width = 0, height = 15, bordery = 5, borderx = 10)
+    maxy, maxx = Ncurses.stdscr.getmaxy, Ncurses.stdscr.getmaxx
+    @nlines = [height + 2, maxy - 2 * bordery].min
+    @ncols = [width + 2, maxx - 2 * borderx].min
+    @win = Ncurses.stdscr.subwin(@nlines, @ncols, bordery, borderx)
+    new_list([])
+  end
+
+  def destroy
+    @win.delwin if @win
+  end
+
+  def new_list(list)
+    @list = list
+    @top_item = 0
+    @cur_item = 0
+    display_list
+  end
+
+  def display_list
+    return unless @win
+    @win.box(0, 0)
+    len = @ncols - 2
+    height = @nlines - 2
+    str = " Commands "
+    @win.mvaddstr(0, (len - str.size)  / 2, str) if len > str.size
+    i = 1
+    @list[@top_item..-1].each { |s|
+      break if i > height
+      @win.attron(Ncurses::A_REVERSE) if @cur_item + 1 == i + @top_item
+      @win.mvaddstr(i, 1, s.ljust(len)[0, len])
+      @win.attroff(Ncurses::A_REVERSE) if @cur_item + 1 == i + @top_item
+      i += 1
+    }
+    empty = " " * len
+    i.upto(height) { |j|
+      @win.mvaddstr(j, 1, empty)
+    }
+    @win.wsyncup
+  end
+
+  def next_item
+    @cur_item += 1 if @cur_item < @list.size - 1
+    @top_item += 1 if (@cur_item - @top_item).abs >= @nlines - 2
+    display_list
+  end
+
+  def previous_item
+    @cur_item -= 1 if @cur_item > 0
+    @top_item -= 1 if @cur_item < @top_item
+    display_list
+  end
+
+  def item; @list[@cur_item]; end
 end
