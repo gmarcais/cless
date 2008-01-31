@@ -188,7 +188,16 @@ class LineDisplay
   def st_col; @st_col; end
 
   def st_col=(n)
-    return @st_col if n < 0 || n > @data.sizes.size
+    n = 0 if n < 0
+    n = @data.sizes.size if n > @data.sizes.size
+    return @st_col if n == @st_col
+
+    range, sign = (n > @st_col) ? [@st_col...n, 1] : [n...@st_col, -1]
+    @col_off += sign * @data.sizes[range].inject(0) { |acc, x| 
+      acc + x + @sep.size
+    }
+    @col_off = [@col_off, 0].max
+    @col_off = 0 if n == 0
     @st_col = n
   end
 
