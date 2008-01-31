@@ -86,6 +86,11 @@ class Attr
 end
 
 class Curses
+  (?a..?z).each { |c|
+    const_set("CTRL_#{c.chr.upcase}", c - ?a + 1)
+  }
+  ESC = ?\e
+
   def initialize(args = {})
     Ncurses.initscr
     @started = true
@@ -379,13 +384,6 @@ class LineDisplay
   # :max_len    Width of window
   # :string     Initial value
   # :cursor_pos Initial cursor position
-  CTRL_A = ?a - ?a + 1
-  CTRL_B = ?b - ?a + 1
-  CTRL_D = ?d - ?a + 1
-  CTRL_E = ?e - ?a + 1
-  CTRL_F = ?f - ?a + 1
-  CTRL_H = ?h - ?a + 1
-  CTRL_K = ?k - ?a + 1
   def read_line(y, x, opts = {})
     window     = opts[:window] || Ncurses.stdscr
     max_len    = opts[:max_len] || (window.getmaxx - x - 1)
@@ -397,20 +395,20 @@ class LineDisplay
       window.move(y,x+cursor_pos)
       ch = window.getch
       case ch
-      when Ncurses::KEY_LEFT, CTRL_B
+      when Ncurses::KEY_LEFT, Curses::CTRL_B
         cursor_pos = [0, cursor_pos-1].max
-      when Ncurses::KEY_RIGHT, CTRL_F
+      when Ncurses::KEY_RIGHT, Curses::CTRL_F
         cursor_pos = [string.length, cursor_pos+1].min
       when Ncurses::KEY_ENTER, ?\n, ?\r
         return string, cursor_pos, ch # Which return key has been used?
-      when Ncurses::KEY_HOME, CTRL_A
+      when Ncurses::KEY_HOME, Curses::CTRL_A
         cursor_pos = 0
-      when Ncurses::KEY_END, CTRL_E
+      when Ncurses::KEY_END, Curses::CTRL_E
         cursor_pos = [max_len, string.length].min
-      when Ncurses::KEY_DC, CTRL_D
+      when Ncurses::KEY_DC, Curses::CTRL_D
         string.slice!(cursor_pos)
         window.mvaddstr(y, x+string.length, " ")
-      when CTRL_K
+      when Curses::CTRL_K
         window.mvaddstr(y, x, " " * string.length)
         string = ""
       when Ncurses::KEY_BACKSPACE, ?\b
@@ -418,6 +416,8 @@ class LineDisplay
           cursor_pos -= 1
           string.slice!(cursor_pos)
           window.mvaddstr(y, x+string.length, " ")
+        else
+          return "", 0, ch
         end
       when ?\e          # ESCAPE
         return "", 0, ch
