@@ -114,7 +114,11 @@ end
 class LineDisplay
   DEFAULTS = {
     :line_highlight => true,   # Wether to hilight every other line
+    :line_highlight_period => 2,
+    :line_highlight_shift => 0,
     :col_highlight => true,    # Wether to hilight every other column
+    :col_highlight_period => 2,
+    :col_highlight_shift => 1,
     :column => false,           # Wether to display column number
     :col_start => 1,            # 1-based column numbering by default
     :line => false,             # Wether to display line number
@@ -202,7 +206,7 @@ class LineDisplay
     sline = refresh_column_headers
 
     @data.lines(lines) { |l|
-      highlighted = @line_highlight && (line_i%2 == 0)
+      highlighted = @line_highlight && ((line_i - @line_highlight_shift)%@line_highlight_period == 0)
       highlighted ? @attr.set : @attr.reset
       display_line(l, line_i, sline, highlighted)
       i += 1
@@ -234,7 +238,8 @@ class LineDisplay
         ms.slice!(0, @st_col)
         clen = @len
         @sizes.zip(ms).each_with_index { |sm, i|
-          chilighted = !highlighted && @col_highlight && ((@st_col + i)%2 == 1)
+          chilighted = !highlighted && @col_highlight
+          chilighted &&= ((@st_col - @col_highlight_shift + i)%@col_highlight_period == 0)
           @attr.on if chilighted
           s, m = *sm
           if m
