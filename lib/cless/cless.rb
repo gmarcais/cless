@@ -29,6 +29,9 @@ class Manager
     @done = false
     @status = ""
     @prebuff = ""
+    @half_screen_lines = nil
+    @full_screen_lines = nil
+    @scroll_columns = nil
   end
 
   def done; @done = true; end
@@ -48,40 +51,48 @@ class Manager
   
   def wait_for_key
     status = nil
+    esc = false
     while !@done do
       @display.wait_status(@status, ":" + @prebuff)
       nc = false        # Set to true if no data change
       status = 
         case k = Ncurses.getch
-        when Ncurses::KEY_DOWN, Ncurses::KEY_ENTER, ?e, ?\n, ?\r
-          @data.scroll(1); true
-        when Ncurses::KEY_UP, ?y: @data.scroll(-1); true
-        when " "[0], Ncurses::KEY_NPAGE, ?f: 
-            @data.scroll(@display.nb_lines - 1); true
-        when Ncurses::KEY_PPAGE, ?b: @data.scroll(1 - @display.nb_lines); true
-        when Ncurses::KEY_HOME, ?g, ?<: @data.goto_start; true
-        when Ncurses::KEY_END, ?G, ?>: @data.goto_end; true
-        when Ncurses::KEY_LEFT: @display.st_col -= 1; true
-        when Ncurses::KEY_RIGHT: @display.st_col += 1; true
+        when Ncurses::KEY_DOWN, Ncurses::KEY_ENTER, Curses::CTRL_N, ?e, Curses::CTRL_E, ?j, ?\n, ?\r
+          scroll_forward_line
+        when Ncurses::KEY_UP, ?y, Curses::CTRL_Y, Curses::CTRL_P, ?k, Curses::CTRL_K
+          scroll_backward_line
+        when ?d, Curses::CTRL_D
+          scroll_forward_half_screen(true)
+        when ?u, Curses::CTRL_U
+          scroll_backward_half_screen(true)
+        when " "[0], Ncurses::KEY_NPAGE, Curses::CTRL_V, ?f, Curses::CTRL_F
+          scroll_forward_full_screen
+        when ?z: scroll_forward_full_screen(true)
+        when Ncurses::KEY_PPAGE, ?b, Curses::CTRL_B
+          scroll_backward_full_screen
+        when ?w
+          scroll_backward_full_screen(true)
+        when Ncurses::KEY_HOME, ?g, ?<: goto_line(0)
+        when Ncurses::KEY_END, ?G, ?>: goto_line(-1)
+        when Ncurses::KEY_LEFT: scroll_left
+        when Ncurses::KEY_RIGHT: scroll_right
         when ?+: @display.col_space += 1; true
         when ?-: @display.col_space -= 1; true
         when ?F: goto_position_prompt
-        when ?%: column_format_prompt
+        when ?v: column_format_prompt
         when ?i: ignore_line_prompt
         when ?I: ignore_line_remove_prompt
-        when ?o: @display.line_highlight = !@display.line_highlight; true
-        when ?O: @display.col_highlight = !@display.col_highlight; true
+        when ?o: toggle_line_highlight
+        when ?O: toggle_column_highlight
+        when ?m: shift_line_highlight
+        when ?M: shift_column_highlight
         when ?c: @display.column = !@display.column; true
         when ?l: @display.line = !@display.line; true
         when ?L: @display.line_offset = !@display.line_offset; true
         when ?h: hide_columns_prompt
         when ?H: hide_columns_prompt(:show)
-        when ?): change_column_start_prompt
-# Need to find new binding for those
-#        when ?0: @display.col_start = (@display.col_start == 0) ? 1 : 0; true
-#        when ?1: @display.next_foreground; color_descr
-#        when ?2: @display.next_background; color_descr
-#        when ?3: @display.next_attribute; color_descr
+        when ?): esc ? scroll_right : change_column_start_prompt
+        when ?(: esc ? scroll_left : true
         when ?/: search_prompt(:forward)
         when ??: search_prompt(:backward)
         when ?n: repeat_search
@@ -91,18 +102,22 @@ class Manager
         when ?E: export_prompt
         when ?t: show_hide_headers
         when ?T: change_headers_prompt
-        when ?p: change_separator_prompt
-        when ?P: change_padding_prompt
+        when ?p, ?%: goto_percent
+        when ?x: change_separator_prompt
+        when ?x: change_padding_prompt
         when ?^: change_headers_to_line_content_prompt
-        when ?r: @data.clear_cache; Ncurses::endwin; Ncurses::doupdate
+        when ?r, ?R, Curses::CTRL_R, Curses::CTRL_L
+          @data.clear_cache; Ncurses::endwin; Ncurses::doupdate
         when Ncurses::KEY_RESIZE: nc = true # Will break to refresh display
         when Ncurses::KEY_F1, ?a: display_help
         when ?0..?9: @prebuff += k.chr; next
+        when Ncurses::KEY_BACKSPACE, ?\b
+          esc ? @prebuff = "" : @prebuff.chop!; next
         when ?q: return nil
+        when Curses::ESC: esc = true; next
         else 
           next
         end
-      $log.puts(k)
       break
     end
     
@@ -115,6 +130,61 @@ class Manager
         ""
       end
     return true
+  end
+
+  def scroll_forward_line
+    @data.scroll(prebuff || 1)
+    true
+  end
+
+  def scroll_backward_line
+    @data.scroll(-(prebuff || 1))
+    true
+  end
+
+  def scroll_forward_half_screen(save = false)
+    @half_screen_lines = prebuff if save && prebuff
+    @data.scroll(prebuff || @half_screen_lines || (@display.nb_lines / 2))
+    true
+  end
+
+  def scroll_backward_half_screen(save = false)
+    @half_screen_lines = prebuff if save && prebuff
+    @data.scroll(-(prebuff || @half_screen_lines || (@display.nb_lines / 2)))
+    true
+  end
+
+  def scroll_forward_full_screen(save = false)
+    @full_screen_lines = prebuff if save && prebuff
+    @data.scroll(prebuff || @full_screen_lines || (@display.nb_lines - 1))
+    true
+  end
+
+  def scroll_backward_full_screen(save = false)
+    @full_screen_lines = prebuff if save && prebuff
+    @data.scroll(-(prebuff || @full_screen_lines || (@display.nb_lines - 1)))
+    true
+  end
+
+  def scroll_right
+    @scroll_columns = prebuff if prebuff
+    @display.st_col += @scroll_columns || 1
+    true
+  end
+
+  def scroll_left
+    @scroll_columns = prebuff if prebuff
+    @display.st_col += -(@scroll_columns || 1)
+    true
+  end
+
+  def goto_line(l)
+    if prebuff
+      @data.goto_line(prebuff)
+    else
+      (l < 0) ? @data.goto_end : @data.goto_start
+    end
+    true
   end
 
   def hide_columns_prompt(show = false)
@@ -155,6 +225,36 @@ class Manager
     true
   end
 
+  def toggle_line_highlight
+    i = prebuff
+    @display.line_highlight = !@display.line_highlight
+    @display.line_highlight_period = i if i
+    true
+  end
+
+  def toggle_column_highlight
+    i = prebuff
+    @display.col_highlight = !@display.col_highlight
+    @display.col_highlight_period = i if i
+    true
+  end
+
+  def shift_line_highlight
+    if i = prebuff
+      @display.line_highlight_shift = i
+    else
+      @display.line_highlight_shift += 1
+    end
+  end
+  
+  def shift_column_highlight
+    if i = prebuff
+      @display.col_highlight_shift = i
+    else
+      @display.col_highlight_shift += 1
+    end
+  end
+  
   def change_headers_to_line(i)
     raise Error, "Bad line number #{i}" if i < 1
     i_bak = @data.line + 1
@@ -227,6 +327,11 @@ class Manager
       return "Error: #{e.message}"
     end
     "Wrote #{nb_bytes} bytes"
+  end
+
+  def goto_percent
+    percent = prebuff or return true
+    @data.goto_percent(percent)
   end
 
   def goto_position_prompt
