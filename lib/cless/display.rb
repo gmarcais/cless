@@ -146,7 +146,7 @@ class LineDisplay
     @data = data
     @col_hide = nil
     @col_headers = nil          # Actual names
-    @st_col = 0
+    @col_off = @st_col = 0
     @args = args
   end
 
@@ -164,8 +164,9 @@ class LineDisplay
   def next_attribute; @attr.next_attribute; end
   def attr_names; @attr.names; end
 
-  # col_hide and col_show respect the flag col_zero. I.e. the index of the
-  # column to pass is 0-based or 1-based depending on col_zero
+  # @col_hide always store the 0 based indices of the
+  # columns to show or hide. @col_start is taken into account when
+  # setting and getting the @col_hide variables, and for display.
   def col_hide_clear; @col_hide = nil; end
   def col_hide(*args)
     args = args.collect { |x| x - @col_start }
@@ -218,7 +219,7 @@ class LineDisplay
     Ncurses.refresh
   end
 
-  def display_line(l, line_i, sline, highlighted)
+  def display_line(l, line_i, sline, highlighted, sift = true)
     if @line
       Ncurses.attron(Ncurses::A_REVERSE) if l.has_match
       Ncurses.attron(Ncurses::A_UNDERLINE) if IgnoredLine === l
@@ -229,13 +230,11 @@ class LineDisplay
     end
 
     if Line === l
-      a = l.values_at(*@col_show)
-      a.slice!(0, @st_col)
+      a = sift ? l.values_at(*@col_show) : l.values_at(0..-1)
       if l.has_match || (@col_highlight && !highlighted)
         # Lines has search matches or do column highlight
         # => display one field at a time
-        ms = l.matches_at(*@col_show)
-        ms.slice!(0, @st_col)
+        ms = sift ? l.matches_at(*@col_show) : l.matches_at(0..-1)
         clen = @len
         @sizes.zip(ms).each_with_index { |sm, i|
           chilighted = !highlighted && @col_highlight
@@ -312,22 +311,18 @@ class LineDisplay
   def refresh_column_headers
     @col_names &= @col_headers  # Disable col_names if no headers
     if @column
-      cnumber = (0..(@sizes.size-1)).collect { |x| (x + @col_start).to_s }
+      cnumber = @col_show.map { |x| (x + @col_start).to_s }
       @sizes.max_update(cnumber.collect { |x| x.size })
     end
     if @col_names
-      @sizes.max_update(@col_headers.collect { |s| s.size })
+      hs = @col_headers.values_at(@col_show).collect { |s| s.size }
+      @sizes.max_update(hs)
     end
-
-    @col_off = @sizes[0...@st_col].inject(0) { |a, x| a + x } + @st_col
-
-    @sizes = @sizes.values_at(*@col_show)
-    @sizes.slice!(0, @st_col)
 
     sline = 0
     if @column
       Ncurses.attron(Ncurses::A_UNDERLINE) if !@col_names
-      display_line(Line.new(cnumber), "", sline, false)
+      display_line(Line.new(cnumber), "", sline, false, false)
       Ncurses.attroff(Ncurses::A_UNDERLINE) if !@col_names
       sline += 1
     end
@@ -343,18 +338,17 @@ class LineDisplay
   def refresh_prepare
     lines = nb_lines
     @len = Ncurses.stdscr.getmaxx
-    @sizes = @data.sizes.dup
-    @col_show = (0..(@sizes.size-1)).to_a
+    @col_show = (@st_col..(@st_col + @col_hide.size + @len / 2)).to_a
     @col_show -= @col_hide if @col_hide
+    @sizes = @data.sizes.values_at(*@col_show)
     if @line
       @linec = @line_offset ? @data.max_offset : (@data.line + lines)
       @linec = @linec.to_s.size
     end
     @len -= @linec + @col_space if @line
-    nbf = [@col_show.size - @st_col, 0].max
     @sep = @separator.center(@col_space, @padding)
     @col_fmt = "%*s#{@sep}"
-    @format = @col_fmt * nbf
+    @format = @col_fmt * @col_show.size
     return lines
   end
 
