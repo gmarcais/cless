@@ -351,14 +351,10 @@ class MapData
     cache_size = @cache.size
     if delta > 0
       skipped = skip_forward(delta) 
-      @line += skipped
-      @line2 = @line if @line > @line2
       @cache.slice!(0, skipped)
       cache_forward([cache_size, skipped].min)
     else
       skipped = skip_backward(-delta)
-      @line2 -= skipped
-      @line = @line2 if @line2 < @line
       delta = -@cache.size if -delta > @cache.size
       @cache.slice!((delta..-1))
       cache_backward([cache_size, skipped].min)
@@ -532,6 +528,8 @@ class MapData
       i += 1
     end
     @off2 = @off if @off2 < @off
+    @line += i
+    @line2 = @line if @line > @line2
     i
   end
 
@@ -544,6 +542,8 @@ class MapData
       i += 1
     end
     @off = @off2 if @off > @off2
+    @line2 -= i
+    @line = @line2 if @line2 < @line
     i
   end
 end
