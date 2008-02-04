@@ -445,7 +445,9 @@ class Manager
   end
 
   def change_column_start_prompt
-    s = @display.prompt("First column: ") or return nil
+    s = prebuff
+    s = @display.prompt("First column: ") unless s
+    return nil unless s
     @display.col_start = s.to_i
     true
   end
