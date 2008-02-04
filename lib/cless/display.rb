@@ -325,7 +325,8 @@ class LineDisplay
       @sizes.max_update(cnumber.collect { |x| x.size })
     end
     if @col_names
-      hs = @col_headers.values_at(@col_show).collect { |s| s.size }
+      column_headers = @col_headers.values_at(*@col_show).map { |x| x || "" }
+      hs = col_headers.map { |s| s.size }
       @sizes.max_update(hs)
     end
 
@@ -338,7 +339,7 @@ class LineDisplay
     end
     if @col_names
       Ncurses.attron(Ncurses::A_UNDERLINE)
-      display_line(Line.new(@col_headers), "", sline, false)
+      display_line(Line.new(column_headers), "", sline, false, false)
       Ncurses.attroff(Ncurses::A_UNDERLINE)
       sline += 1
     end
