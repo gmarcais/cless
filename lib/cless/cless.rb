@@ -136,7 +136,7 @@ class Manager
         when ?T: change_headers_prompt
         when ?p, ?%: goto_percent
         when ?x: change_separator_prompt
-        when ?x: change_padding_prompt
+        when ?X: change_padding_prompt
         when ?^: change_headers_to_line_content_prompt
         when ?r, ?R, Curses::CTRL_R, Curses::CTRL_L
           @data.clear_cache; Ncurses::endwin; Ncurses::doupdate

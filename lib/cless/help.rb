@@ -6,48 +6,51 @@ module Help
  Key binding
  ===========
 
- ARROW_DOWN, ENTER, e:         scroll one line down
- SPACE BAR, PAGE_DOWN, f:      scroll one page down
- ARROW_UP, y:                  scroll one line up
- PAGE_UP, b:                   scroll one page up
- ARROW_RIGHT:                  scroll one column to the right
- ARROW_LEFT:                   scroll one column to the left
- HOME, g, <:                   go to top of file
- END, G, >:                    go to end of file
- +:                            increase column spacing
- -:                            decrease column spacing
- 1:                            change foreground colors for highlight
- 2:                            change background colors for highlight
- 3:                            change attributes for hilight
- 0:                            toggle 0-based / 1-based column numbering
- ^:                            enter first column index
- c:                            show/hide the column numbers
- l:                            show/hide the line numbers (1 based)
- L:                            show byte offset instead of line number
- h:                            hide column (space separated list)
- H:                            show column (space separated list)
- o:                            toggle highlighting of alternate lines
- O:                            toggle highlighting of alternate columns
- F:                            go to line. 10  -> absolute line number
-                                            10o -> absolute offset
-                                            10% -> percentage in file
- %:                            format columns. E.g.  10:%.1f
- i:                            ignore lines. Lines or regexp
- I:                            remove ignore lines patterns
- /:                            forward search
- ?:                            backward search
- n:                            repeat previous search
- N:                            repeat previous search, reversed direction
- s:                            save content to file
- E:                            export content to some format (tex, csv)
- S:                            change split regexp
- t:                            toggle column names
- T:                            change column names (BROKEN)
- ^:                            use a line from file for column headers
- p:                            change separator caracter
- P:                            change padding caracter
- r:                            refresh display
- q:                            quit
+ Key binding is mostly compatible with the original less.
+
+ ARROW_DOWN, ENTER, ^N, ^E, j     scroll down one line
+ SPACE BAR, PAGE_DOWN, ^V, ^F, f  scroll down one page
+ ARROW_UP, ^Y, ^P, ^K, y, k       scroll up one line
+ PAGE_UP, ^B, b                   scroll up one page
+ ARROW_RIGHT, ESC-)               scroll right one column
+ ARROW_LEFT, ESC-(                scroll left one column
+ d                                scroll down half screen
+ u                                scroll up half screen
+ HOME, g, <                       go to top of file
+ END, G, >                        go to end of file
+ +                                increase column spacing
+ -                                decrease column spacing
+ c                                show/hide the column numbers
+ l                                show/hide the line numbers (1 based)
+ L                                show byte offset instead of line number
+ h                                hide column (space separated list)
+ H                                show column (space separated list)
+ )                                change first column index
+ o                                toggle highlighting of alternate lines
+ O                                toggle highlighting of alternate columns 
+ m                                shift line highlighting start
+ M                                shift column highlighting start
+ F                                go to. 10  -> absolute line number
+                                         10o -> absolute offset
+                                         10% -> percentage in file
+ p                                go to percentage.
+ v                                format columns. 10:%.1f formats columns 10
+ i                                ignore lines. Lines or regexp
+ I                                remove ignore lines patterns
+ /                                forward search
+ ?                                backward search
+ n                                repeat previous search
+ N                                repeat previous search, reversed direction
+ s                                save content to file
+ E                                export content to some format (tex, csv)
+ S                                change split regexp
+ t                                toggle column names
+ ^                                use a line from file for column headers
+ x                                change column separator caracter
+ X                                change column padding string
+ r                                refresh display
+ :                                command menu
+ q                                quit
 
  Notes on Searching
  ==================
@@ -64,6 +67,14 @@ module Help
  Note also that the match might be in a hidden column. In any case, if
  the line numbers are displayed, a line having a match will have its
  line number in reverse video.
+
+ Environment variable
+ ====================
+
+ If set, the environment variable CLESS gives switches to be added to the
+ switches found on the command line. For example, to always display the line
+ numbers and columns:
+    CLESS="--lines --column"
 
  More details at http://genome1.umd.edu
 EOF
