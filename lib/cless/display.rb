@@ -351,7 +351,7 @@ class LineDisplay
     @len = Ncurses.stdscr.getmaxx
     @col_show = (@st_col..(@st_col + @col_hide.size + @len / 2)).to_a
     @col_show -= @col_hide if @col_hide
-    @sizes = @data.sizes.values_at(*@col_show)
+    @sizes = @data.sizes.values_at(*@col_show).map { |x| x || 0 }
     if @line
       @linec = @line_offset ? @data.max_offset : (@data.line + lines)
       @linec = @linec.to_s.size
