@@ -279,7 +279,7 @@ class MapData
 
   def goto_end
     @line = @line2 = @str.lines
-    @off = @off2 = (@str.rindex("\n", @str.size-1) || -1) + 1
+    @off2 = @off = @str.size
     cache_size = @cache.size
     @cache.clear
     scroll(-cache_size)
@@ -511,21 +511,18 @@ class MapData
   def cache_backward(n)
     lnb = @line - 1
     n.times do |i|
-      case @off
-      when 0: break
-      when 1
-        @cache.unshift(line_massage("", lnb - i, 0))
-        @off = 0
-      else
-        npos = @str.rindex("\n", @off - 2)
-        nnpos = npos || 0
-        ooff = @off
-        @off = npos ? npos + 1 : 0
-        @cache.unshift(line_massage(@str[nnpos, ooff - nnpos - 1], lnb - i, 
-                                    @off))
-      end
+      break if @off == 0
+      ooff = @off
+      npos, @off = search_backward_to_new_line(@off)
+      @cache.unshift(line_massage(@str[npos, ooff - npos - 1], lnb - i, @off))
     end
     @line = @line2 - @cache.size
+  end
+
+  def search_backward_to_new_line(start)
+    return [0, 0] if start < 2
+    npos = @str.rindex("\n", start - 2)
+    return [npos || 0, npos ? npos + 1 : 0]
   end
 
   # Move @off by n lines. Make sure that @off2 >= @off
@@ -546,8 +543,8 @@ class MapData
   def skip_backward(n)
     i = 0
     n.times do
-      break if @off2 < 2
-      @off2 = (@str.rindex("\n", @off2-2) || -1) + 1
+      break if @off2 == 0
+      _, @off2 = search_backward_to_new_line(@off2)
       i += 1
     end
     @off = @off2 if @off > @off2
