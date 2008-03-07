@@ -502,7 +502,7 @@ class MapData
     lnb = @line + @cache.size
     n.times do |i|
       noff2 = @str.index("\n", @off2) or break
-      @cache << line_massage(@str[@off2..(noff2-1)], lnb + i, @off2)
+      @cache << line_massage(@str[@off2, noff2 - @off2], lnb + i, @off2)
       @off2 = noff2 + 1
     end
     @line2 = @line + @cache.size
@@ -511,10 +511,19 @@ class MapData
   def cache_backward(n)
     lnb = @line - 1
     n.times do |i|
-      break if @off < 2
-      noff = (@str.rindex("\n", @off-2) || -1) + 1
-      @cache.unshift(line_massage(@str[noff..(@off-2)], lnb - i, noff))
-      @off = noff
+      case @off
+      when 0: break
+      when 1
+        @cache.unshift(line_massage("", lnb - i, 0))
+        @off = 0
+      else
+        npos = @str.rindex("\n", @off - 2)
+        nnpos = npos || 0
+        ooff = @off
+        @off = npos ? npos + 1 : 0
+        @cache.unshift(line_massage(@str[nnpos, ooff - nnpos - 1], lnb - i, 
+                                    @off))
+      end
     end
     @line = @line2 - @cache.size
   end
