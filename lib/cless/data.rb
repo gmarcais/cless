@@ -378,16 +378,18 @@ class MapData
     cache_fill(size)
   end
 
-  FMT_LETTERS = "bcdEefGgiosuXx"
-  FMT_REGEXP = /(?:^|[^%])%[ \d#+*.-]*([#{FMT_LETTERS}])/;
+  FMT_LETTERS = "bcdEefGgiIosuXx"
+  FMT_REGEXP = /(^|[^%])(%[ \d#+*.-]*)([#{FMT_LETTERS}])/
   FLOAT_PROC = proc { |x| x.to_f }
   INT_PROC = proc { |x| x.to_i }
+  BIGINT_PROC = proc { |x| x.reverse.gsub(/(...)/, '\1,').chomp(",").reverse }
   def set_format_column(fmt, *cols)
     a = [fmt]
     if fmt =~ FMT_REGEXP
-      case $1
+      case $3
       when "b", "c", "d", "i", "o", "u", "X", "x": a << INT_PROC
       when "E", "e", "f", "G", "g": a << FLOAT_PROC
+      when "I": a = ["#{$`}#{$1}#{$2}s#{$'}", BIGINT_PROC]
       end
     end
     @formats ||= {}
