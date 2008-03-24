@@ -26,7 +26,6 @@ options = {
   :formats => [],
   :ignore => [],
   :split_regexp => nil,
-  :line_highlight_regexp => nil,
   :hide => [],
   :tmp_dir => Dir.tmpdir,
   :options_db => [],
@@ -63,11 +62,6 @@ loop do
     opts.on("--line-period PERIOD", "Hilight period for lines " +
             val[:line_highlight_period]) { |v|
       options[:line_highlight_period] = v.to_i
-    }
-    opts.on("--line-highlight-regexp REGEXP", 
-            "Hilight line on regular expression" + 
-            val[:line_highlight_regexp]) { |v|
-      options[:line_highlight_regexp] = Regexp.new(v)
     }
     opts.on("--line-shift SHIFT", "Hilight shift for lines " +
             val[:line_highlight_shift]) { |v|
@@ -137,7 +131,7 @@ loop do
       options[:ignore] << v
     }
     opts.on("--split-regexp REGEXP", "Regular expression to split lines") { |v|
-      options[:split_regexp] = Regexp.new(v)
+      options[:split_regexp] = v
     }
     opts.on("--type TYPE", "Type of file") { |v|
       options[:type] = v
@@ -251,7 +245,6 @@ begin
   manager = Manager.new(data, display, db)
   data.cache_fill(1)
   
-  data.highlight_regexp = options[:line_highlight_regexp]
   display.col_headers = options[:names]
   display.col_hide(*options[:hide])
   options[:formats].each { |fmt| manager.column_format(fmt) }

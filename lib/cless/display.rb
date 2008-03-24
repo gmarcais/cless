@@ -217,7 +217,9 @@ class LineDisplay
     sline = refresh_column_headers
 
     @data.lines(lines) { |l|
-      highlighted = @line_highlight && ((line_i - @line_highlight_shift)%@line_highlight_period == 0)
+      highlighted = @line_highlight && ((line_i - @line_highlight_shift) %
+                                        @line_highlight_period == 0)
+      highlighted ||= l.highlight?
       highlighted ? @attr.set : @attr.reset
       display_line(l, line_i, sline, highlighted)
       i += 1
