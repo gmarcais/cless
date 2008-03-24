@@ -38,7 +38,6 @@ class Manager
     "toggle_column_highlight" => :toggle_column_highlight,
     "shift_line_highlight" => :shift_line_highlight,
     "shift_column_highlight" => :shift_column_highlight,
-    "regexp_line_highlight" => :regexp_line_highlight_prompt,
     "forward_search" => :forward_search,
     "backward_search" => :backward_search,
     "repeat_search" => :repeat_search,
@@ -521,23 +520,6 @@ class Manager
     end
     @data.split_regexp = regexp
     "New split regexp: /#{regexp}/"
-  end
-
-  def regexp_line_highlight_prompt
-    s = @display.prompt("Highlight regexp(/#{@data.split_regexp}/): ")
-    s.strip! if s
-    if !s || s.empty?
-      @data.highlight_regexp = nil
-      return "No line highlight by regexp"
-    end
-    begin
-      s.gsub!(%r{^/|/$}, '')
-      regexp = s.empty? ? nil : Regexp.new(s)
-    rescue => e
-      return "Invalid regexp /#{s}/: #{e.message}"
-    end
-    @data.highlight_regexp = regexp
-    "New highlight regexp: /#{regexp}/"
   end
 
   def change_separator_prompt

@@ -177,15 +177,12 @@ end
 
 class Line
   attr_reader :has_match, :off
-  attr_accessor :highlight
-  alias :highlight? :highlight
 
   def initialize(a, onl = nil, off = nil)
     @a, @onl = a, onl
     @m = []
     @has_match = false
     @off = off
-    @highlight = false
   end
 
   def ignored; false; end
@@ -235,12 +232,6 @@ class IgnoredLine
 
   def ignored; true; end
   alias :ignored? :ignored
-
-  # An ignored line is never highlighted
-  def highlight; false; end
-  alias :highlight? :highlight
-
-  def highlight=(*args); end
 end
 
 class MapData
@@ -256,7 +247,6 @@ class MapData
     @formats = nil      # formating strings. When not nil, a hash.
     @ignores = nil      # line ignored index or pattern.
     @split_regexp = split_regexp        # split pattern
-    @highlight_regexp = nil             # highlight pattern
   end
 
   def file_path; @str.file_path; end
@@ -432,11 +422,6 @@ class MapData
     clear_cache
   end
 
-  def highlight_regexp=(regexp)
-    @highlight_regexp = regexp
-    clear_cache
-  end
-
   def remove_ignore(pattern)
     if pattern.nil?
       r, @ignored = @ignored, nil
@@ -512,7 +497,6 @@ class MapData
       l = Line.new(nl, onl, off)
     end
     l.match(@pattern) if @pattern
-    l.highlight = @highlight_regexp && (@highlight_regexp =~ str)
     l
   end
 
