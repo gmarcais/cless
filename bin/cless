@@ -137,6 +137,7 @@ loop do
       options[:ignore] << v
     }
     opts.on("--split-regexp REGEXP", "Regular expression to split lines") { |v|
+      v.gsub!(%r{^/|/$}, '')
       options[:split_regexp] = Regexp.new(v)
     }
     opts.on("--type TYPE", "Type of file") { |v|
@@ -236,17 +237,8 @@ begin
     opts.parse(a)
     opts = nil
   end
-  begin
-    s = options[:split_regexp]
-    s && s.gsub!(%r{^/|/$}, '')
-    split_regexp = (!s || s.empty?) ? nil : Regexp.new(s)
-  rescue => e
-    $stderr.puts("Invalid regexp /#{s}/: #{e.message}")
-    $stderr.puts("Using default whitespaces")
-    split_regexp = nil
-  end
   
-  data = MapData.new(ptr, split_regexp)
+  data = MapData.new(ptr, options[:split_regexp])
   display = LineDisplay.new(data, options)
   manager = Manager.new(data, display, db)
   data.cache_fill(1)
