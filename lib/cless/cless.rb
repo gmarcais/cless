@@ -323,6 +323,7 @@ class Manager
     raise Error, "Bad line number #{i}" if i < 1
     i_bak = @data.line + 1
     @data.goto_line(i)
+    @data.cache_fill(1)
     line = nil
     @data.lines(1) { |l| line = l }
     @data.goto_line(i_bak)     # Go back
