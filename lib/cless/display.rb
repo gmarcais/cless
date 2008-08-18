@@ -153,6 +153,7 @@ class LineDisplay
 
   def initialize_curses
     @attr = Attr.new(@args)
+    @col_names &= @col_headers  # Disable col_names if no headers
     @args = nil
   end
 
