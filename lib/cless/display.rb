@@ -368,13 +368,12 @@ class LineDisplay
   def wait_status(status, wprompt)
     len = Ncurses.stdscr.getmaxx
     Ncurses.attrset(Ncurses::A_NORMAL)
-    Ncurses.mvaddstr(Ncurses.stdscr.getmaxy-1, 0, wprompt)
-    unless status.empty?
-      Ncurses.attrset(Ncurses::A_BOLD)
-      nlen = len - wprompt.length
-      Ncurses.addstr(status.rjust(nlen)[0, nlen])
-      Ncurses.attrset(Ncurses::A_NORMAL)
-    end
+    Ncurses.mvaddstr(Ncurses.stdscr.getmaxy-1, 0, wprompt[0, len-1])
+    
+    nlen = len - wprompt.length
+    Ncurses.attrset(Ncurses::A_BOLD)
+    Ncurses.addstr(status.rjust(nlen)[0, nlen])
+    Ncurses.attrset(Ncurses::A_NORMAL)
   end
 
   def prompt(ps, opts = {})
