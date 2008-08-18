@@ -531,16 +531,16 @@ class MapData
     n.times do |i|
       break if @off == 0
       ooff = @off
-      npos, @off = search_backward_to_new_line(@off)
-      @cache.unshift(line_massage(@str[npos, ooff - npos - 1], lnb - i, @off))
+      @off = search_backward_to_new_line(@off)
+      @cache.unshift(line_massage(@str[@off, ooff - @off - 1], lnb - i, @off))
     end
     @line = @line2 - @cache.size
   end
 
   def search_backward_to_new_line(start)
-    return [0, 0] if start < 2
+    return 0 if start < 2
     npos = @str.rindex("\n", start - 2)
-    return [npos || 0, npos ? npos + 1 : 0]
+    return npos ? npos + 1 : 0
   end
 
   # Move @off by n lines. Make sure that @off2 >= @off
@@ -562,7 +562,7 @@ class MapData
     i = 0
     n.times do
       break if @off2 == 0
-      _, @off2 = search_backward_to_new_line(@off2)
+      @off2 = search_backward_to_new_line(@off2)
       i += 1
     end
     @off = @off2 if @off > @off2
