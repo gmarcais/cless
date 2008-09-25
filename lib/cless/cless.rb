@@ -19,6 +19,12 @@ class String
   end
 end
 
+class Interrupt
+  def initialize; @raised = false; end
+  def raise; @raised = true; end
+  def reset; r, @raised = @raised, false; r; end
+end
+
 class Manager
   class Error < StandardError; end
 
@@ -65,9 +71,12 @@ class Manager
     @half_screen_lines = nil
     @full_screen_lines = nil
     @scroll_columns = nil
+    @interrupt = false
   end
 
   def done; @done = true; end
+  def interrupt_set; @interrupt = true; end
+  def interrupt_reset; i, @interrupt = @interrupt, false; i; end
 
   def main_loop
     if @status.empty?

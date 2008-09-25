@@ -1,5 +1,10 @@
 #! /usr/bin/ruby
 
+trap("SIGTERM") { exit }
+trap("SIGINT") { exit } # Will be redefined
+trap("SIGQUIT") { exit }
+trap("SIGHUP") { exit }
+
 require 'cless/cless'
 require 'optparse'
 
@@ -37,6 +42,12 @@ options = {
 }
 onoff = proc { |k| "(" + (options[k] ? "on" : "off") + ")" }
 val = proc { |k| "(" + (options[k] || "none").to_s + ")" }
+
+def die(msg, code = 1)
+  $stderr.puts(msg)
+  $stderr.puts("Use --help for detailed options")
+  exit(code)
+end
 
 opts = nil
 loop do
@@ -174,23 +185,17 @@ loop do
   begin
     opts.parse!(args)
   rescue => e
-    $stderr.puts("Error (#{e.class}): #{e.message}")
-    $stderr.puts(opts)
-    exit(1)
+    die("Error (#{e.class}): #{e.message}")
   end
   break unless again
 end
 
 # Move around the file descriptor if not a tty!
 if !$stdout.tty?
-  $stderr.puts("Works only on terminals!")
-  $stderr.puts(opts)
-  exit(1)
+  die("Works only on terminals")
 end
 if ARGV.empty? && $stdin.tty?
-  $stderr.puts("Cannot read from data tty")
-  $stderr.puts(opts)
-  exit(1)
+  die("Cannot read from data tty")
 end
 if !$stdin.tty?
   stdin = $stdin.dup
@@ -199,17 +204,23 @@ end
 
 class KeyboardInterrupt < StandardError; end
 
-trap("SIGTERM") { exit }
-trap("SIGINT") { raise KeyboardInterrupt, "Ctrl-C" }
-trap("SIGQUIT") { exit }
-trap("SIGHUP") { exit }
-
-ptr = begin
-        ARGV[0] ? MappedFile.new(ARGV[0]) : MappedStream.new(stdin, options)
-      rescue ArgumentError => e
-        $stderr.puts("Mmap failed: #{e.message}")
-        exit(1)
+ptr = if ARGV.empty?
+        MappedStream.new(stdin, options)
+      else
+        first = true
+        begin
+          first ? MappedFile.new(ARGV[0]) : 
+            MappedStream.new(open(ARGV[0]), options)
+        rescue => e
+          if first
+            first = false
+            retry
+          else 
+            die("Error opening file '#{ARGV[0]}': #{e.message}")
+          end
+        end
       end
+$interrupt = Interrupt.new
 
 begin
   # Finish parsing options
@@ -219,7 +230,7 @@ begin
       db.parse_file(f)
     rescue => e
       $stderr.puts("Error with db #{f}: #{e.message}")
-    end
+   end
   end
   type = options[:type] || ARGV[0]
   if type
@@ -241,6 +252,7 @@ begin
   data = MapData.new(ptr, options[:split_regexp])
   display = LineDisplay.new(data, options)
   manager = Manager.new(data, display, db)
+  trap("SIGINT") { $interrupt.raise }
   data.cache_fill(1)
   
   data.highlight_regexp = options[:line_highlight_regexp]
