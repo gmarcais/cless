@@ -44,7 +44,7 @@ class MappedStream
     :buf_size => 64*1024,
     :tmp_dir => Dir.tmpdir,
   }
-  attr_reader :ptr, :more
+  attr_reader :ptr, :more, :fd
   def initialize(fd, args = {})
     @fd = fd
     @more = true
@@ -76,17 +76,24 @@ class MappedStream
 
   def size; @ptr.size; end
   def rindex(*args); @ptr.rindex(*args); end
+  
+  def read_block
+    @fd.read_nonblock(@buf_size, @buf)
+    @ptr << @buf
+  rescue Errno::EAGAIN, Errno::EINTR
+    false
+  rescue EOFError
+    @more = false
+    false
+  end
+    
+
   def index(substr, off = 0)
     loop do
       r = @ptr.index(substr, off) and return r
       return nil unless @more
       off = (@ptr.rindex("\n", @ptr.size) || -1) + 1
-      begin
-        @fd.sysread(@buf_size, @buf)
-        @ptr << @buf
-      rescue EOFError
-        @more = false
-      end
+      read_block or return nil
     end
   end
   def [](*args); @ptr[*args]; end
@@ -94,18 +101,13 @@ class MappedStream
   # Get the total number of lines
   # Stop if line_stop or offset_stop limits are crossed.
   def lines(line_stop = nil, offset_stop = nil)
-    return @lines if @lines
+    return @lines unless @more
     lines = @ptr.count("\n")
     while @more
-      begin 
-        @fd.sysread(@buf_size, @buf)
-        @ptr << @buf
-        lines += @buf.count("\n")
-        return lines if line_stop && lines >= line_stop
-        return @ptr.size if offset_stop && @ptr.size >= offset_stop
-      rescue EOFError
-        @more = false
-      end
+      read_block or break
+      lines += @buf.count("\n")
+      return lines if line_stop && lines >= line_stop
+      return @ptr.size if offset_stop && @ptr.size >= offset_stop
     end
     @lines = lines
     @lines += 1 if @ptr[-1] != ?\n
@@ -120,13 +122,7 @@ class MappedStream
         yield(@ptr[off..r])
         off = r + 1
       else
-        begin
-          @fd.sysread(@buf_size, @buf)
-          @ptr << @buf
-        rescue EOFError
-          @more = false
-          break
-        end
+        read_block or break
       end
     end
   end
@@ -257,6 +253,7 @@ class MapData
     @ignores = nil      # line ignored index or pattern.
     @split_regexp = split_regexp        # split pattern
     @highlight_regexp = nil             # highlight pattern
+    @need_more = false  # true if last cache_fill needs data
   end
 
   def file_path; @str.file_path; end
@@ -271,6 +268,14 @@ class MapData
       fd.syswrite(@str[@str.size - r, r])
     end
     @str.size
+  end
+
+  def select_fd
+    if @need_more && @str.respond_to?(:more) && @str.respond_to?(:fd)
+      @str.more ? @str.fd : nil
+    else
+      nil
+    end
   end
 
   # yield n lines with length len to be displayed
@@ -372,7 +377,8 @@ class MapData
   end
 
   def cache_fill(n)
-    cache_forward(n - @cache.size) if @cache.size < n
+    @need_more = @cache.size < n
+    cache_forward(n - @cache.size) if @need_more
   end
 
   def clear_cache

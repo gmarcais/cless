@@ -377,6 +377,10 @@ class LineDisplay
     Ncurses.attrset(Ncurses::A_NORMAL)
   end
 
+  def flush
+    Ncurses.refresh
+  end
+
   def prompt(ps, opts = {})
     stdscr = Ncurses.stdscr
     len = stdscr.getmaxx

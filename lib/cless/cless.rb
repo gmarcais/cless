@@ -95,8 +95,21 @@ class Manager
     status = nil
     esc = false
     while !@done do
-      @display.wait_status(@status, ":" + @prebuff)
       nc = false        # Set to true if no data change
+      data_fd = @data.select_fd
+      prompt = data_fd ? "+:" : ":"
+      @display.wait_status(@status, prompt + @prebuff)
+      if data_fd
+        @display.flush
+        in_fds = [$stdin, data_fd]
+        in_fds = select(in_fds)
+        if in_fds[0].include?(data_fd)
+          status = :more
+          nc = true
+          break
+        end
+      end
+
       status = 
         case k = Ncurses.getch
         when Ncurses::KEY_DOWN, Ncurses::KEY_ENTER, Curses::CTRL_N, ?e, Curses::CTRL_E, ?j, ?\n, ?\r
@@ -169,6 +182,7 @@ class Manager
       case status
       when String: status
       when nil: "Cancelled"
+      when :more: @status
       else
         ""
       end
