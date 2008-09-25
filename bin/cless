@@ -8,7 +8,7 @@ trap("SIGHUP") { exit }
 require 'cless/cless'
 require 'optparse'
 
-Version = [0, 3, 16]
+Version = [0, 3, 17]
 
 options = {
   :column => false,
