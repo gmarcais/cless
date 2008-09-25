@@ -1,3 +1,5 @@
+require 'fcntl'
+
 # Including class must respond to #each_line
 module MappedCommon
   def parse_header(allowed = [])
@@ -47,6 +49,8 @@ class MappedStream
   attr_reader :ptr, :more, :fd
   def initialize(fd, args = {})
     @fd = fd
+    flags = fd.fcntl(Fcntl::F_GETFL)
+    fd.fcntl(Fcntl::F_SETFL, flags | Fcntl::O_NONBLOCK)
     @more = true
     @buf = ""
     @line = nil
@@ -78,7 +82,7 @@ class MappedStream
   def rindex(*args); @ptr.rindex(*args); end
   
   def read_block
-    @fd.read_nonblock(@buf_size, @buf)
+    @fd.sysread(@buf_size, @buf)
     @ptr << @buf
   rescue Errno::EAGAIN, Errno::EINTR
     false
