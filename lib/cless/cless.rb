@@ -275,8 +275,13 @@ class Manager
 
   def unhide_columns; hide_columns_prompt(true); end
   def hide_columns_prompt(show = false)
-    s = @display.prompt(show ? "Show: " : "Hide: ") or return nil
-    a = s.split.collect { |x| x.to_i }
+    i = prebuff
+    if i
+      a = [i]
+    else
+      s = @display.prompt(show ? "Show: " : "Hide: ") or return nil
+      a = s.split.collect { |x| x.to_i }
+    end
     if a.empty?
       @display.col_hide_clear
     else

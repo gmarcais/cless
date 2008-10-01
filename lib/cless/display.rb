@@ -145,7 +145,7 @@ class LineDisplay
       self.send("#{k}=", args[k].nil? ? v : args[k])
     }
     @data = data
-    @col_hide = nil
+    @col_hide = []
     @col_headers = nil          # Actual names
     @col_off = @st_col = 0
     @args = args
@@ -169,22 +169,20 @@ class LineDisplay
   # @col_hide always store the 0 based indices of the
   # columns to show or hide. @col_start is taken into account when
   # setting and getting the @col_hide variables, and for display.
-  def col_hide_clear; @col_hide = nil; end
+  def col_hide_clear; @col_hide = []; end
   def col_hide(*args)
     args = args.collect { |x| x - @col_start }
-    @col_hide ||= []
     @col_hide.push(*args)
     @col_hide.uniq!
     @col_hide.sort!
   end
 
   def col_hidden
-    return [] unless @col_hide
     @col_hide.collect { |x| x + @col_start }
   end
 
   def col_show(*args) 
-    @col_hide and @col_hide -= args.collect { |x| x - @col_start }
+    @col_hide -= args.collect { |x| x - @col_start }
   end
 
   def st_col; @st_col; end
@@ -353,7 +351,7 @@ class LineDisplay
     lines = nb_lines
     @len = Ncurses.stdscr.getmaxx
     @col_show = (@st_col..(@st_col + @col_hide.size + @len / 2)).to_a
-    @col_show -= @col_hide if @col_hide
+    @col_show -= @col_hide
     @sizes = @data.sizes.values_at(*@col_show).map { |x| x || 0 }
     if @line
       @linec = @line_offset ? @data.max_offset : (@data.line + lines)
