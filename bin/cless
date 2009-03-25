@@ -192,7 +192,7 @@ end
 
 # Move around the file descriptor if not a tty!
 if !$stdout.tty?
-  die("Works only on terminals")
+  exec("cat", *ARGV)
 end
 if ARGV.empty? && $stdin.tty?
   die("Cannot read from data tty")
