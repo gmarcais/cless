@@ -192,6 +192,7 @@ class Line
   alias :ignored? :ignored
 
   def values_at(*args); @a.values_at(*args); end
+  def onl_at(*args); @onl.values_at(*args); end
   def matches_at(*args); @m.values_at(*args); end
 
   # onl is the line before any formatting or transformation.

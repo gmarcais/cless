@@ -357,7 +357,7 @@ class Manager
     @data.goto_line(i_bak)     # Go back
     raise Error, "No such line" unless line
     raise Error, "Ignored line: can't use" if line.kind_of?(IgnoredLine)
-    @display.col_headers = line.values_at(0..-1)
+    @display.col_headers = line.onl_at(0..-1)
     @display.col_names = true
     true
   end
