@@ -402,7 +402,12 @@ class MapData
   FMT_REGEXP = /(^|[^%])(%[ \d#+*.-]*)([#{FMT_LETTERS}])/
   FLOAT_PROC = proc { |x| x.to_f }
   INT_PROC = proc { |x| x.to_i }
-  BIGINT_PROC = proc { |x| x.reverse.gsub(/(...)/, '\1,').chomp(",").reverse }
+  BIGINT_PROC = proc { |x| 
+    x = (x =~ /[\.eE]/) ? x = x.to_f.round : x.to_i
+    neg = (x < 0)
+    x = x.abs.to_s.reverse.gsub(/(...)/, '\1,').chomp(",").reverse
+    neg ? "-#{x}" : x
+  }
   def set_format_column(fmt, *cols)
     a = [fmt]
     if fmt =~ FMT_REGEXP
