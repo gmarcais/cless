@@ -53,7 +53,7 @@ class MappedStream
     fd.fcntl(Fcntl::F_SETFL, flags | Fcntl::O_NONBLOCK)
     @more = true
     @buf = ""
-    @line = nil
+    @lines = nil
 
     DEFAULTS.each { |k, v|
       instance_variable_set("@#{k}", args[k] || v)
@@ -105,7 +105,7 @@ class MappedStream
   # Get the total number of lines
   # Stop if line_stop or offset_stop limits are crossed.
   def lines(line_stop = nil, offset_stop = nil)
-    return @lines unless @more
+    return @lines unless @more || @lines.nil?
     lines = @ptr.count("\n")
     while @more
       read_block or break
