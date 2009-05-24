@@ -27,7 +27,7 @@ options = {
   :background => "none",
   :attribute => "bold",
   :names => nil,
-  :type => nil,
+  :profile => nil,
   :formats => [],
   :ignore => [],
   :split_regexp => nil,
@@ -151,8 +151,8 @@ loop do
       v.gsub!(%r{^/|/$}, '')
       options[:split_regexp] = Regexp.new(v)
     }
-    opts.on("--type TYPE", "Type of file") { |v|
-      options[:type] = v
+    opts.on("--profile PROFILE", "Option profile") { |v|
+      options[:profile] = v
     }
     opts.on("-T", "--tmp-dir DIR", "Temporary directory #{val[:tmp_dir]}") { |v|
       options[:tmp_dir] = v
@@ -232,19 +232,16 @@ begin
       $stderr.puts("Error with db #{f}: #{e.message}")
    end
   end
-  type = options[:type] || ARGV[0]
-  if type
-    if (a = db.find(type))
-      begin
-        opts.parse(a)
-      rescue => e
-        $stderr.puts("Error with options from db: #{e.message}")
-      end
+  if a = db[options[:profile]] || a = db.match(ARGV[0])
+    begin
+      opts.parse(a)
+    rescue => e
+      $stderr.puts("Error with options from db: #{e.message}")
     end
   end
   header_l = nil
   if options[:parse_header]
-    header_l, a = ptr.parse_header(["type", "names", "format", "ignore"])
+    header_l, a = ptr.parse_header(["profile", "names", "format", "ignore"])
     opts.parse(a)
     opts = nil
   end

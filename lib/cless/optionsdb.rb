@@ -1,6 +1,7 @@
 class OptionsDB
   def initialize(*files)
     @names = {}
+    @regexps = {}
     files.each { |f| parse_file(f) }
   end
 
@@ -9,16 +10,20 @@ class OptionsDB
       fd.each_line do |l|
         a = l.split_with_quotes
         n = a.shift
-        @names[Regexp.new("#{Regexp.quote(n)}$")] = a if n
+        r = a.shift
+        @names[n] = a
+        @regexps[Regexp.new(r)] = a
       end
     end
     true
   end
 
-  def find(name)
-    @names.each do |n, v|
-      return v if n =~ name
+  def match(fname)
+    @regexps.each do |regexp, v|
+      return v if fname =~ regexp
     end
     nil
   end
+
+  def [](name); name.nil? ? nil : @names[name]; end
 end

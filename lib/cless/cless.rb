@@ -38,7 +38,6 @@ class Manager
     "hide_columns" => :hide_columns_prompt,
     "unhide_columns" => :unhide_columns,
     "toggle_headers" => :show_hide_headers,
-    "change_headers" => :change_headers_prompt,
     "change_headers_to_line" => :change_headers_to_line_content_prompt,
     "toggle_line_highlight" => :toggle_line_highlight,
     "toggle_column_highlight" => :toggle_column_highlight,
@@ -156,7 +155,6 @@ class Manager
         when ?S: change_split_pattern_prompt
         when ?E: export_prompt
         when ?t: show_hide_headers
-        when ?T: change_headers_prompt
         when ?p, ?%: goto_percent
         when ?x: change_separator_prompt
         when ?X: change_padding_prompt
@@ -293,13 +291,6 @@ class Manager
   def show_hide_headers
     return "No names defined" if !@display.col_names && !@display.col_headers
     @display.col_names = !@display.col_names
-    true
-  end
-
-  def change_headers_prompt
-    s = @display.prompt("Pattern: ") or return nil
-    a = @db.find(s.strip) or return "Pattern not found"
-    @display.col_headers = a
     true
   end
 
