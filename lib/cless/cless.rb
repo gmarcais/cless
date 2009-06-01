@@ -304,11 +304,14 @@ class Manager
   end
 
   def change_headers_to_line_content_prompt
-    i = @data.line + 1
-    s = @display.prompt("Header line: ", :init => i.to_s) or return nil
-    s.strip!
-    return "Bad line number #{s}" unless s =~ /^\d+$/
-    i = s.to_i
+    i = prebuff
+    if i.nil?
+      i = @data.line + 1
+      s = @display.prompt("Header line: ", :init => i.to_s) or return nil
+      s.strip!
+      return "Bad line number #{s}" unless s =~ /^\d+$/
+      i = s.to_i
+    end
     begin
       change_headers_to_line(i)
     rescue => e
