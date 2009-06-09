@@ -74,8 +74,8 @@ class MappedStream
   def file_path; @tfd.path; end
 
   def munmap
-    @ptr.munmap
-    @tfd.close!
+    @ptr.munmap rescue nil
+    @tfd.close! rescue nil
   end
 
   def size; @ptr.size; end
