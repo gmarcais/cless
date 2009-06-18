@@ -399,7 +399,7 @@ class MapData
     cache_fill(size)
   end
 
-  FMT_LETTERS = "bcdEefGgiIosuXx"
+  FMT_LETTERS = "bcdEefGgiIosuXxp"
   FMT_REGEXP = /(^|[^%])(%[ \d#+*.-]*)([#{FMT_LETTERS}])/
   FLOAT_PROC = proc { |x| x.to_f }
   INT_PROC = proc { |x| x.to_i }
@@ -409,6 +409,7 @@ class MapData
     x = x.abs.to_s.reverse.gsub(/(...)/, '\1,').chomp(",").reverse
     neg ? "-#{x}" : x
   }
+  PERCENTAGE_PROC = proc { |x| x.to_f * 100.0 }
   def set_format_column(fmt, *cols)
     a = [fmt]
     if fmt =~ FMT_REGEXP
@@ -416,6 +417,7 @@ class MapData
       when "b", "c", "d", "i", "o", "u", "X", "x": a << INT_PROC
       when "E", "e", "f", "G", "g": a << FLOAT_PROC
       when "I": a = ["#{$`}#{$1}#{$2}s#{$'}", BIGINT_PROC]
+      when "p": a = ["#{$`}#{$1}#{$2}f%#{$'}", PERCENTAGE_PROC]
       end
     end
     @formats ||= {}
