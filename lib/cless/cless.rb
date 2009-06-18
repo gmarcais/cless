@@ -216,6 +216,17 @@ class Manager
     self.__send__(Commands[sub.item]) if s
   end
 
+  def range_prompt(prompt)
+    s = @display.prompt(prompt) or return nil
+    s.split_with_quotes().map { |r|
+      case r
+      when /^(\d+)$/: $1.to_i
+      when /^(\d+)(?:\.{2,3}|-)(\d+)$/: (($1.to_i)..($2.to_i)).to_a
+      else raise "Invalid range: #{r}"
+      end
+    }.flatten
+  end
+
   def scroll_forward_line
     @data.scroll(prebuff || 1)
     true
@@ -274,18 +285,15 @@ class Manager
   def unhide_columns; hide_columns_prompt(true); end
   def hide_columns_prompt(show = false)
     i = prebuff
-    if i
-      a = [i]
-    else
-      s = @display.prompt(show ? "Show: " : "Hide: ") or return nil
-      a = s.split.collect { |x| x.to_i }
-    end
+    a = i ? [i] : range_prompt(show ? "Show: " : "Hide: ") or return nil
     if a.empty?
       @display.col_hide_clear
     else
       show ? @display.col_show(*a) : @display.col_hide(*a)
     end
     "Hidden: #{@display.col_hidden.join(" ")}"
+  rescue => e
+    return e.message
   end
 
   def show_hide_headers
@@ -446,16 +454,14 @@ class Manager
   end
 
   def column_format_prompt
-    s = @display.prompt("Format: ") or return nil
-    s.strip!
-    column_format(s)
-  end
-  
-  def column_format(s)
-    cols, fmt = s.split(/:/, 2)
+    i = prebuff
+    cols = i ? [i] : range_prompt("Format columns: ") or return nil
+    fmt = @display.prompt("Format string: ") or return nil
+    fmt.strip!
+
     inc = @display.col_start
     if cols
-      cols = cols.split.collect { |x| x.to_i - inc }
+      cols = cols.map { |x| x.to_i - inc }
       cols.delete_if { |x| x < 0 }
       if fmt && !fmt.empty?
         @data.set_format_column(fmt, *cols)
@@ -466,6 +472,8 @@ class Manager
     end
     cols = @data.formatted_column_list.sort.collect { |x| x + inc }
     "Formatted: " + cols.join(" ")
+  rescue => e
+    return e.message
   end
 
   def change_column_start_prompt
