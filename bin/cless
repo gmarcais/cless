@@ -255,7 +255,7 @@ begin
   data.highlight_regexp = options[:line_highlight_regexp]
   display.col_headers = options[:names]
   display.col_hide(*options[:hide])
-  options[:formats].each { |fmt| manager.column_format(fmt) }
+  options[:formats].each { |fmt| manager.column_format_inline(fmt) }
   options[:ignore].each { |pat| manager.ignore_line(pat) }
   manager.ignore_line("1-#{header_l}") if header_l && header_l > 0
   if options[:header_line]

@@ -216,15 +216,19 @@ class Manager
     self.__send__(Commands[sub.item]) if s
   end
 
-  def range_prompt(prompt)
-    s = @display.prompt(prompt) or return nil
-    s.split_with_quotes().map { |r|
+  def str_to_range(str)
+    str.split_with_quotes().map { |r|
       case r
       when /^(\d+)$/: $1.to_i
       when /^(\d+)(?:\.{2,3}|-)(\d+)$/: (($1.to_i)..($2.to_i)).to_a
       else raise "Invalid range: #{r}"
       end
     }.flatten
+  end
+
+  def range_prompt(prompt)
+    s = @display.prompt(prompt) or return nil
+    str_to_range(s)
   end
 
   def scroll_forward_line
@@ -458,7 +462,18 @@ class Manager
     cols = i ? [i] : range_prompt("Format columns: ") or return nil
     fmt = @display.prompt("Format string: ") or return nil
     fmt.strip!
+    column_format(cols, fmt)
+  rescue => e
+    return e.message
+  end
 
+  def column_format_inline(str)
+    cols, fmt = str.split(/:/, 2)
+    cols = str_to_range(cols)
+    column_format(cols, fmt)
+  end
+
+  def column_format(cols, fmt)
     inc = @display.col_start
     if cols
       cols = cols.map { |x| x.to_i - inc }
@@ -472,8 +487,6 @@ class Manager
     end
     cols = @data.formatted_column_list.sort.collect { |x| x + inc }
     "Formatted: " + cols.join(" ")
-  rescue => e
-    return e.message
   end
 
   def change_column_start_prompt
