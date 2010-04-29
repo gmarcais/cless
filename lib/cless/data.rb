@@ -401,24 +401,27 @@ class MapData
 
   FMT_LETTERS = "bcdEefGgiIosuXxp"
   FMT_REGEXP = /(^|[^%])(%[ \d#+*.-]*)([#{FMT_LETTERS}])/
+  FLOAT_REGEXP = /^[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?$/
+  INT_REGEXP = /^[-+]?[0-9]+$/
   FLOAT_PROC = proc { |x| x.to_f }
   INT_PROC = proc { |x| x.to_i }
-  BIGINT_PROC = proc { |x| 
-    x = (x =~ /[\.eE]/) ? x = x.to_f.round : x.to_i
+  BIGINT_PROC = proc { |x|
+    x = x.to_f.round
     neg = (x < 0)
     x = x.abs.to_s.reverse.gsub(/(...)/, '\1,').chomp(",").reverse
     neg ? "-#{x}" : x
   }
-  PERCENTAGE_PROC = proc { |x| x.to_f * 100.0 }
+  PERCENTAGE_PROC = proc { |x|
+    x.to_f * 100.0
+  }
   def set_format_column(fmt, *cols)
-    a = [fmt]
     if fmt =~ FMT_REGEXP
-      case $3
-      when "b", "c", "d", "i", "o", "u", "X", "x": a << INT_PROC
-      when "E", "e", "f", "G", "g": a << FLOAT_PROC
-      when "I": a = ["#{$`}#{$1}#{$2}s#{$'}", BIGINT_PROC]
-      when "p": a = ["#{$`}#{$1}#{$2}f%#{$'}", PERCENTAGE_PROC]
-      end
+      a = case $3
+          when "b", "c", "d", "i", "o", "u", "X", "x": [fmt, INT_REGEXP, INT_PROC]
+          when "E", "e", "f", "G", "g": [fmt, FLOAT_REGEXP, FLOAT_PROC]
+          when "I": ["#{$`}#{$1}#{$2}s#{$'}", FLOAT_REGEXP, BIGINT_PROC]
+          when "p": ["#{$`}#{$1}#{$2}f%#{$'}", FLOAT_REGEXP, PERCENTAGE_PROC]
+          end
     end
     @formats ||= {}
     cols.each { |c| @formats[c] = a }
@@ -501,7 +504,8 @@ class MapData
     onl = nl.dup
     @formats.each do |i, f|
       s = nl[i] or next
-      fmt, proc = *f
+      fmt, cond, proc = *f
+      cond =~ s or next
       s = proc[s] if proc
       nl[i] = fmt % s rescue "###"
     end
