@@ -1,4 +1,5 @@
 require 'fcntl'
+require 'cless/assert'
 
 # Including class must respond to #each_line
 module MappedCommon
