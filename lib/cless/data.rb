@@ -418,10 +418,10 @@ class MapData
   def set_format_column(fmt, *cols)
     if fmt =~ FMT_REGEXP
       a = case $3
-          when "b", "c", "d", "i", "o", "u", "X", "x": [fmt, INT_REGEXP, INT_PROC]
-          when "E", "e", "f", "G", "g": [fmt, FLOAT_REGEXP, FLOAT_PROC]
-          when "I": ["#{$`}#{$1}#{$2}s#{$'}", FLOAT_REGEXP, BIGINT_PROC]
-          when "p": ["#{$`}#{$1}#{$2}f%#{$'}", FLOAT_REGEXP, PERCENTAGE_PROC]
+          when "b", "c", "d", "i", "o", "u", "X", "x"; [fmt, INT_REGEXP, INT_PROC]
+          when "E", "e", "f", "G", "g"; [fmt, FLOAT_REGEXP, FLOAT_PROC]
+          when "I"; ["#{$`}#{$1}#{$2}s#{$'}", FLOAT_REGEXP, BIGINT_PROC]
+          when "p"; ["#{$`}#{$1}#{$2}f%#{$'}", FLOAT_REGEXP, PERCENTAGE_PROC]
           end
     end
     @formats ||= {}
@@ -516,8 +516,8 @@ class MapData
   def line_ignore?(str, i)
     @ignored.any? do |pat|
       case pat
-      when Range, Fixnum: pat === i
-      when Regexp: pat === str
+      when Range, Fixnum; pat === i
+      when Regexp; pat === str
       else false
       end
     end

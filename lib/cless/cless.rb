@@ -8,6 +8,10 @@ require 'cless/optionsdb'
 require 'cless/export'
 require 'cless/help'
 
+# For short :)
+NC = Ncurses
+C = Curses
+
 class String
   def split_with_quotes(sep = '\s', q = '\'"')
     r = / \G(?:^|[#{sep}])     # anchor the match
@@ -109,68 +113,61 @@ class Manager
         end
       end
 
+      k = Ncurses.getch
       status = 
-        case k = Ncurses.getch
-        when Ncurses::KEY_DOWN, Ncurses::KEY_ENTER, Curses::CTRL_N, ?e, Curses::CTRL_E, ?j, ?\n, ?\r
+        case k
+        when NC::KEY_DOWN, NC::KEY_ENTER, C::CTRL_N, ?e.ord.ord, C::CTRL_E, ?j.ord, ?\n.ord, ?\r.ord
           scroll_forward_line
-        when Ncurses::KEY_UP, ?y, Curses::CTRL_Y, Curses::CTRL_P, ?k, Curses::CTRL_K
+        when NC::KEY_UP, ?y.ord, C::CTRL_Y, C::CTRL_P, ?k.ord, C::CTRL_K
           scroll_backward_line
-        when ?d, Curses::CTRL_D
-          scroll_forward_half_screen(true)
-        when ?u, Curses::CTRL_U
-          scroll_backward_half_screen(true)
-        when " "[0], Ncurses::KEY_NPAGE, Curses::CTRL_V, ?f, Curses::CTRL_F
-          scroll_forward_full_screen
-        when ?z: scroll_forward_full_screen(true)
-        when Ncurses::KEY_PPAGE, ?b, Curses::CTRL_B
-          scroll_backward_full_screen
-        when ?w
-          scroll_backward_full_screen(true)
-        when Ncurses::KEY_HOME, ?g, ?<: goto_line(0)
-        when Ncurses::KEY_END, ?G, ?>: goto_line(-1)
-        when Ncurses::KEY_LEFT: scroll_left
-        when Ncurses::KEY_RIGHT: scroll_right
-        when ?+: @display.col_space += 1; true
-        when ?-: @display.col_space -= 1; true
-        when ?F: goto_position_prompt
-        when ?v: column_format_prompt
-        when ?i: ignore_line_prompt
-        when ?I: ignore_line_remove_prompt
-        when ?o: toggle_line_highlight
-        when ?O: toggle_column_highlight
-        when ?m: shift_line_highlight
-        when ?M: shift_column_highlight
-        when ?c: @display.column = !@display.column; true
-        when ?l: @display.line = !@display.line; true
-        when ?L: @display.line_offset = !@display.line_offset; true
-        when ?h: hide_columns_prompt
-        when ?H: hide_columns_prompt(:show)
-        when ?): esc ? scroll_right : change_column_start_prompt
-        when ?(: esc ? scroll_left : true
-        when ?/: search_prompt(:forward)
-        when ??: search_prompt(:backward)
-        when ?n: repeat_search
-        when ?N: repeat_search(true)
-        when ?s: save_file_prompt
-        when ?S: change_split_pattern_prompt
-        when ?E: export_prompt
-        when ?t: show_hide_headers
-        when ?p, ?%: goto_percent
-        when ?x: change_separator_prompt
-        when ?X: change_padding_prompt
-        when ?^: change_headers_to_line_content_prompt
-        when ?r, ?R, Curses::CTRL_R, Curses::CTRL_L
-          @data.clear_cache; Ncurses::endwin; Ncurses::doupdate
-        when Ncurses::KEY_RESIZE: nc = true # Will break to refresh display
-        when Ncurses::KEY_F1, ?a: display_help
-        when ?0..?9: @prebuff += k.chr; next
-        when Ncurses::KEY_BACKSPACE, ?\b
-          esc ? @prebuff = "" : @prebuff.chop!; next
-        when ?:: long_command
-        when ?q: return nil
-        when Curses::ESC: esc = true; next
-        else 
-          next
+        when ?d.ord, C::CTRL_D; scroll_forward_half_screen(true)
+        when ?u.ord, C::CTRL_U; scroll_backward_half_screen(true)
+        when C::SPACE, NC::KEY_NPAGE, C::CTRL_V, ?f.ord, C::CTRL_F; scroll_forward_full_screen
+        when ?z.ord; scroll_forward_full_screen(true)
+        when NC::KEY_PPAGE, ?b.ord, C::CTRL_B; scroll_backward_full_screen
+        when ?w.ord; scroll_backward_full_screen(true)
+        when NC::KEY_HOME, ?g.ord, ?<.ord; goto_line(0)
+        when NC::KEY_END, ?G.ord, ?>.ord; goto_line(-1)
+        when NC::KEY_LEFT; scroll_left
+        when NC::KEY_RIGHT; scroll_right
+        when ?+.ord; @display.col_space += 1; true
+        when ?-.ord; @display.col_space -= 1; true
+        when ?F.ord; goto_position_prompt
+        when ?v.ord; column_format_prompt
+        when ?i.ord; ignore_line_prompt
+        when ?I.ord; ignore_line_remove_prompt
+        when ?o.ord; toggle_line_highlight
+        when ?O.ord; toggle_column_highlight
+        when ?m.ord; shift_line_highlight
+        when ?M.ord; shift_column_highlight
+        when ?c.ord; @display.column = !@display.column; true
+        when ?l.ord; @display.line = !@display.line; true
+        when ?L.ord; @display.line_offset = !@display.line_offset; true
+        when ?h.ord; hide_columns_prompt
+        when ?H.ord; hide_columns_prompt(:show)
+        when ?).ord; esc ? scroll_right : change_column_start_prompt
+        when ?(.ord; esc ? scroll_left : true
+        when ?/.ord; search_prompt(:forward)
+        when ??.ord; search_prompt(:backward)
+        when ?n.ord; repeat_search
+        when ?N.ord; repeat_search(true)
+        when ?s.ord; save_file_prompt
+        when ?S.ord; change_split_pattern_prompt
+        when ?E.ord; export_prompt
+        when ?t.ord; show_hide_headers
+        when ?p.ord, ?%.ord; goto_percent
+        when ?x.ord; change_separator_prompt
+        when ?X.ord; change_padding_prompt
+        when ?^.ord; change_headers_to_line_content_prompt
+        when ?r.ord, ?R.ord, C::CTRL_R, C::CTRL_L; @data.clear_cache; NC::endwin; NC::doupdate
+        when NC::KEY_RESIZE; nc = true # Will break to refresh display
+        when NC::KEY_F1, ?a.ord; display_help
+        when (?0.ord)..(?9.ord); @prebuff += k.chr; next
+        when NC::KEY_BACKSPACE, ?\b.ord; esc ? @prebuff = "" : @prebuff.chop!; next
+        when ?:.ord; long_command
+        when ?q.ord; return nil
+        when C::ESC; esc = true; next
+        else next
         end
       break
     end
@@ -178,11 +175,10 @@ class Manager
     @prebuff = "" unless nc
     @status = 
       case status
-      when String: status
-      when nil: "Cancelled"
-      when :more: @status
-      else
-        ""
+      when String; status
+      when nil; "Cancelled"
+      when :more; @status
+      else ""
       end
     return true
   end
@@ -203,10 +199,9 @@ class Manager
     other = proc { |ch|
       r = true
       case ch
-      when Ncurses::KEY_DOWN, Curses::CTRL_N: sub.next_item
-      when Ncurses::KEY_UP, Curses::CTRL_P: sub.previous_item
-      else
-        r = false
+      when NC::KEY_DOWN, C::CTRL_N; sub.next_item
+      when NC::KEY_UP, C::CTRL_P; sub.previous_item
+      else r = false
       end
       Ncurses.refresh if r
     }
@@ -219,8 +214,10 @@ class Manager
   def str_to_range(str)
     str.split_with_quotes().map { |r|
       case r
-      when /^(\d+)$/: $1.to_i
-      when /^(\d+)(?:\.{2,3}|-)(\d+)$/: (($1.to_i)..($2.to_i)).to_a
+      when /^(\d+)$/
+        $1.to_i
+      when /^(\d+)(?:\.{2,3}|-)(\d+)$/
+        (($1.to_i)..($2.to_i)).to_a
       else raise "Invalid range: #{r}"
       end
     }.flatten
@@ -439,12 +436,12 @@ class Manager
     s = @display.prompt("Goto: ") or return nil
     s.strip!
     case s[-1]
-    when ?p, ?%
+    when ?p.ord, ?%.ord
       s.slice!(-1)
       f = s.to_f
       return "Invalid percentage" if f <= 0.0 || f > 100.0
       @data.goto_percent(f)
-    when ?o
+    when ?o.ord
       s.slice!(-1)
       i = s.to_i
       return "Invalid offset" if i < 0
@@ -507,8 +504,8 @@ class Manager
     a = str.split_with_quotes('\s', '\/')
     a.each do |spat|
       opat = case spat
-             when /^(\d+)(?:\.{2}|-)(\d+)$/: ($1.to_i - 1)..($2.to_i - 1)
-             when /^(\d+)$/: $1.to_i - 1
+             when /^(\d+)(?:\.{2}|-)(\d+)$/; ($1.to_i - 1)..($2.to_i - 1)
+             when /^(\d+)$/; $1.to_i - 1
              else Regexp.new(spat) rescue nil
              end
       yield(spat, opat)
@@ -518,8 +515,8 @@ class Manager
   def ignore_line_list_display(a)
     a.collect { |x|
       o = case x
-          when Range: (x.begin + 1)..(x.end + 1)
-          when Fixnum: x + 1
+          when Range; (x.begin + 1)..(x.end + 1)
+          when Fixnum; x + 1
           else x
           end
       o.inspect

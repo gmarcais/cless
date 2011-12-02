@@ -86,10 +86,11 @@ class Attr
 end
 
 class Curses
-  (?a..?z).each { |c|
-    const_set("CTRL_#{c.chr.upcase}", c - ?a + 1)
+  ((?a.ord)..(?z.ord)).each { |c|
+    const_set("CTRL_#{c.chr.upcase}", c - ?a.ord + 1)
   }
-  ESC = ?\e
+  ESC = ?\e.ord
+  SPACE = " "[0].ord # [0] useless for 1.9 but necessary for 1.8
 
   def initialize(args = {})
     Ncurses.initscr
@@ -386,7 +387,7 @@ class LineDisplay
     Ncurses.mvaddstr(stdscr.getmaxy-1, 0, ps.ljust(len)[0, len])
     s, pos, key = read_line(stdscr.getmaxy-1, ps.length, opts)
     Ncurses.mvaddstr(stdscr.getmaxy-1, 0, " " * len)
-    return (key == ?\e) ? nil : s
+    return (key == ?\e.ord) ? nil : s
   rescue KeyboardInterrupt
     return nil
   end
@@ -418,7 +419,7 @@ class LineDisplay
         cursor_pos = [0, cursor_pos-1].max
       when Ncurses::KEY_RIGHT, Curses::CTRL_F
         cursor_pos = [@prompt_line.length, cursor_pos+1].min
-      when Ncurses::KEY_ENTER, ?\n, ?\r
+      when Ncurses::KEY_ENTER, ?\n.ord, ?\r.ord
         return @prompt_line, cursor_pos, ch # Which return key has been used?
       when Ncurses::KEY_HOME, Curses::CTRL_A
         cursor_pos = 0
@@ -428,19 +429,19 @@ class LineDisplay
         @prompt_line.slice!(cursor_pos)
         window.mvaddstr(y, x+@prompt_line.length, " ")
       when Curses::CTRL_K
-        window.mvaddstr(y, x, " " * @prompt_line.length)
-        @prompt_line = ""
-      when Ncurses::KEY_BACKSPACE, ?\b
+        window.mvaddstr(y, x+cursor_pos, " " * (@prompt_line.length - cursor_pos))
+        @prompt_line = @prompt_line[0, cursor_pos]
+      when Ncurses::KEY_BACKSPACE, ?\b.ord
         if cursor_pos > 0
           cursor_pos -= 1
           @prompt_line.slice!(cursor_pos)
           window.mvaddstr(y, x+@prompt_line.length, " ")
         else
-          return "", 0, ?\e
+          return "", 0, ?\e.ord
         end
-      when ?\e          # ESCAPE
+      when ?\e.ord          # ESCAPE
         return "", 0, ch
-      when " "[0]..255 # remaining printables
+      when C::SPACE..255 # remaining printables
         if (cursor_pos < max_len)
           @prompt_line[cursor_pos,0] = ch.chr
           cursor_pos += 1

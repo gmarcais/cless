@@ -1,4 +1,4 @@
-#! /usr/bin/ruby
+#! /usr/bin/env ruby
 
 trap("SIGTERM") { exit }
 trap("SIGINT") { exit } # Will be redefined
