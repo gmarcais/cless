@@ -48,6 +48,10 @@ class Manager
     "shift_line_highlight" => :shift_line_highlight,
     "shift_column_highlight" => :shift_column_highlight,
     "regexp_line_highlight" => :regexp_line_highlight_prompt,
+    "column_align_left" => :column_align_left,
+    "column_align_right" => :column_align_right,
+    "column_align_center" => :column_align_center,
+    "column_align_auto" => :column_align_auto,
     "forward_search" => :forward_search,
     "backward_search" => :backward_search,
     "repeat_search" => :repeat_search,
@@ -145,6 +149,8 @@ class Manager
         when ?L.ord; @display.line_offset = !@display.line_offset; true
         when ?h.ord; hide_columns_prompt
         when ?H.ord; hide_columns_prompt(:show)
+        when ?A.ord; column_alignment(:right)
+        when ?a.ord; column_alignment(:left)
         when ?).ord; esc ? scroll_right : change_column_start_prompt
         when ?(.ord; esc ? scroll_left : true
         when ?/.ord; search_prompt(:forward)
@@ -295,6 +301,17 @@ class Manager
     "Hidden: #{@display.col_hidden.join(" ")}"
   rescue => e
     return e.message
+  end
+
+  def column_align_left; column_alignment(:left); end
+  def column_align_right; column_alignment(:right); end
+  def column_align_center; column_alignment(:center); end
+  def column_align_auto; column_alignment(nil); end
+  def column_alignment(align)
+    i = prebuff
+    a = i ? [i] : range_prompt("Columns to #{align || "auto"} align: ") or return nil
+    return if a.empty?
+    @display.col_align(align, a)
   end
 
   def show_hide_headers

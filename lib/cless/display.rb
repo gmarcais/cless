@@ -132,6 +132,8 @@ class LineDisplay
   attr_accessor *DEFAULTS.keys
   attr_reader :prompt_line
 
+  ISNUM = /^[+-]?\d*\.?\d*(?:[eE][+-]?\d+)?$/
+
   def separator=(s)
     @separator = (!s || s.empty?) ? " " : s
   end
@@ -147,6 +149,7 @@ class LineDisplay
     }
     @data = data
     @col_hide = []
+    @align   = []       # column alignment: nil (i.e. auto), :left, :right, :center
     @col_headers = nil          # Actual names
     @col_off = @st_col = 0
     @args = args
@@ -184,6 +187,14 @@ class LineDisplay
 
   def col_show(*args) 
     @col_hide -= args.collect { |x| x - @col_start }
+  end
+
+  def col_align(align, cols)
+    cols.each { |x|
+      x -= @col_start
+      next if x < 0
+      @align[x] = align
+    }
   end
 
   def st_col; @st_col; end
@@ -243,42 +254,67 @@ class LineDisplay
 
     if Line === l
       a = sift ? l.values_at(*@col_show) : l.values_at(0..-1)
-      if l.has_match || (@col_highlight && !highlighted)
-        # Lines has search matches or do column highlight
-        # => display one field at a time
-        ms = sift ? l.matches_at(*@col_show) : l.matches_at(0..-1)
-        clen = @len
-        @sizes.zip(ms).each_with_index { |sm, i|
-          chilighted = !highlighted && @col_highlight
-          chilighted &&= ((@st_col - @col_highlight_shift + i)%@col_highlight_period == 0)
-          @attr.on if chilighted
-          s, m = *sm
-          if m
+#      if l.has_match || (@col_highlight && !highlighted)
+#        # Lines has search matches or do column highlight
+      # Now always display one field at a time
+      ms = sift ? l.matches_at(*@col_show) : l.matches_at(0..-1)
+      clen = @len
+      @sizes.zip(ms).each_with_index { |sm, i|
+        chilighted = !highlighted && @col_highlight
+        chilighted &&= ((@st_col - @col_highlight_shift + i)%@col_highlight_period == 0)
+        @attr.on if chilighted
+
+        s, m = *sm
+        align = @align[i]
+        align = (a[i] =~ ISNUM) ? :right : :left if align.nil?
+
+        if m 
+           if align == :right
+             Ncurses.addstr(str = (" " * (s - m.string.length))[0, clen])
+             clen -= str.length; break if clen <= 0
+           elsif align == :center
+             Ncurses.addstr(str = (" " * ((s - m.string.length) / 2))[0, clen])
+             clen -= str.length; break if clen <= 0
+           end
+          Ncurses.addstr(str = m.pre_match[0, clen])
+          clen -= str.length; break if clen <= 0
+          Ncurses.attron(Ncurses::A_REVERSE)
+          Ncurses.addstr(str = m[0][0, clen])
+          Ncurses.attroff(Ncurses::A_REVERSE)
+          clen -= str.length; break if clen <= 0
+          Ncurses.addstr(str = m.post_match[0, clen])
+          clen -= str.length; break if clen <= 0
+          if align == :left
             Ncurses.addstr(str = (" " * (s - m.string.length))[0, clen])
-            clen -= str.length; break if clen <= 0
-            Ncurses.addstr(str = m.pre_match[0, clen])
-            clen -= str.length; break if clen <= 0
-            Ncurses.attron(Ncurses::A_REVERSE)
-            Ncurses.addstr(str = m[0][0, clen])
-            Ncurses.attroff(Ncurses::A_REVERSE)
-            clen -= str.length; break if clen <= 0
-            Ncurses.addstr(str = m.post_match[0, clen])
-            clen -= str.length; break if clen <= 0
-          else
-            Ncurses.addstr(str = ("%*s" % [s, a[i]])[0, clen])
-            clen -= str.length; break if clen <= 0
+            clen -= str.length
+          elsif align == :center
+            space = s - m.string.length            
+            Ncurses.addstr(str = (" " * (space / 2 + space % 2))[0, clen])
+            clen -= str.length
           end
-          @attr.off if chilighted
-          Ncurses.addstr(str = @sep)
-          clen -= str.length; break if clen <= 0            
-        }
-        @attr.reset if @col_highlight
-        Ncurses.addstr(" " * clen) if clen > 0
-      else
-        # No match, display all at once
-        str = (@format % @sizes.zip(a).flatten).ljust(@len)[0, @len]
-        Ncurses.addstr(str)
-      end
+        else # No match
+          case align
+          when :left
+            str = (a[i] || "").ljust(s)
+          when :right
+            str = (a[i] || "").rjust(s)
+          when :center
+            str = (a[i] || "").center(s)
+          end
+          Ncurses.addstr(str[0, clen])
+          clen -= str.length; break if clen <= 0
+        end
+        @attr.off if chilighted
+        Ncurses.addstr(str = @sep)
+        clen -= str.length; break if clen <= 0            
+      }
+      @attr.reset if @col_highlight
+      Ncurses.addstr(" " * clen) if clen > 0
+      # else
+      #   # No match, display all at once
+      #   str = (@format % @sizes.zip(a).flatten).ljust(@len)[0, @len]
+      #   Ncurses.addstr(str)
+      # end
     else # l is an ignored line
       off = @col_off
       clen = @len
