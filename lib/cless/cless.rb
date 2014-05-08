@@ -268,17 +268,20 @@ class Manager
     true
   end
 
-  def scroll_right
+  def scroll_sideways(dir)
     @scroll_columns = prebuff if prebuff
-    @display.st_col += @scroll_columns || 1
+    to_scroll = @scroll_columns || 1
+    st_col = @display.st_col
+    to_scroll.times { |i|
+      st_col += dir
+      redo if @display.col_hidden(false).index(st_col)
+    }
+    @display.st_col = st_col
     true
   end
 
-  def scroll_left
-    @scroll_columns = prebuff if prebuff
-    @display.st_col += -(@scroll_columns || 1)
-    true
-  end
+  def scroll_left; scroll_sideways(-1); end
+  def scroll_right; scroll_sideways(1); end
 
   def goto_line(l)
     if prebuff

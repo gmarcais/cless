@@ -181,8 +181,12 @@ class LineDisplay
     @col_hide.sort!
   end
 
-  def col_hidden
-    @col_hide.collect { |x| x + @col_start }
+  def col_hidden(with_start = true)
+    if with_start
+      @col_hide.collect { |x| x + @col_start }
+    else
+      @col_hide
+    end
   end
 
   def col_show(*args) 
