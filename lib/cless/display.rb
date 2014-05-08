@@ -114,14 +114,15 @@ end
 
 class LineDisplay
   DEFAULTS = {
-    :line_highlight => true,   # Wether to hilight every other line
+    :line_highlight => true,    # Wether to hilight every other line
     :line_highlight_period => 2,
     :line_highlight_shift => 0,
-    :col_highlight => true,    # Wether to hilight every other column
+    :col_highlight => true,     # Wether to hilight every other column
     :col_highlight_period => 2,
     :col_highlight_shift => 1,
     :column => false,           # Wether to display column number
     :col_start => 1,            # 1-based column numbering by default
+    :col_width => 20,           # Maximum column width
     :line => false,             # Wether to display line number
     :line_offset => false,      # Display line offset instead of number
     :col_names => false,        # Wether to display column names
@@ -130,6 +131,7 @@ class LineDisplay
     :padding => " ",            # Padding caracter
   }
   attr_accessor *DEFAULTS.keys
+  attr_accessor :col_offsets, :widths
   attr_reader :prompt_line
 
   ISNUM = /^[+-]?\d*\.?\d*(?:[eE][+-]?\d+)?$/
@@ -147,12 +149,15 @@ class LineDisplay
     DEFAULTS.each { |k, v|
       self.send("#{k}=", args[k].nil? ? v : args[k])
     }
-    @data = data
-    @col_hide = []
-    @align   = []       # column alignment: nil (i.e. auto), :left, :right, :center
-    @col_headers = nil          # Actual names
-    @col_off = @st_col = 0
-    @args = args
+    @data        = data
+    @col_hide    = []
+    @align       = []       # column alignment: nil (i.e. auto), :left, :right, :center
+    @widths      = []       # max column widths
+    @col_offsets = []       # offsets for large columns
+    @col_headers = nil      # Actual names
+    @col_off     = 0
+    @st_col      = 0
+    @args        = args
   end
 
   def initialize_curses
@@ -246,7 +251,7 @@ class LineDisplay
     Ncurses.refresh
   end
 
-  def display_line(l, line_i, sline, highlighted, sift = true)
+  def display_line(l, line_i, sline, highlighted, sift = true, force_center = false)
     if @line
       Ncurses.attron(Ncurses::A_REVERSE) if l.has_match
       Ncurses.attron(Ncurses::A_UNDERLINE) if IgnoredLine === l
@@ -265,49 +270,81 @@ class LineDisplay
       clen = @len
       @sizes.zip(ms).each_with_index { |sm, i|
         chilighted = !highlighted && @col_highlight
-        chilighted &&= ((@st_col - @col_highlight_shift + i)%@col_highlight_period == 0)
+        chilighted &&= ((@st_col - @col_highlight_shift + i) % @col_highlight_period == 0)
         @attr.on if chilighted
 
         s, m = *sm
-        align = @align[i]
+
+        align = force_center ? :center : @align[i]
         align = (a[i] =~ ISNUM) ? :right : :left if align.nil?
 
+        # Handle max column width
+        mwidth = (@widths[i] || @col_width)
+        cwidth = [s, clen, mwidth].min # Actual width of column
+        lcwidth = cwidth # lcwdith is width left in column
+
         if m 
-           if align == :right
-             Ncurses.addstr(str = (" " * (s - m.string.length))[0, clen])
-             clen -= str.length; break if clen <= 0
-           elsif align == :center
-             Ncurses.addstr(str = (" " * ((s - m.string.length) / 2))[0, clen])
-             clen -= str.length; break if clen <= 0
-           end
-          Ncurses.addstr(str = m.pre_match[0, clen])
-          clen -= str.length; break if clen <= 0
-          Ncurses.attron(Ncurses::A_REVERSE)
-          Ncurses.addstr(str = m[0][0, clen])
-          Ncurses.attroff(Ncurses::A_REVERSE)
-          clen -= str.length; break if clen <= 0
-          Ncurses.addstr(str = m.post_match[0, clen])
-          clen -= str.length; break if clen <= 0
-          if align == :left
-            Ncurses.addstr(str = (" " * (s - m.string.length))[0, clen])
-            clen -= str.length
-          elsif align == :center
-            space = s - m.string.length            
-            Ncurses.addstr(str = (" " * (space / 2 + space % 2))[0, clen])
-            clen -= str.length
+          string_length = m.string.length
+          large = string_length > cwidth
+          if !large
+            if align == :right
+              Ncurses.addstr(str = (" " * (cwidth - string_length)))
+              lcwidth -= str.length
+            elsif align == :center
+              Ncurses.addstr(str = (" " * ((cwidth - string_length) / 2)))
+              lcwidth -= str.length
+            end
+            Ncurses.addstr(str = m.pre_match[0, lcwidth])
+            lcwidth -= str.length
+            Ncurses.attron(Ncurses::A_REVERSE)
+            Ncurses.addstr(str = m[0][0, lcwidth])
+            Ncurses.attroff(Ncurses::A_REVERSE)
+            lcwidth -= str.length
+            Ncurses.addstr(str = m.post_match[0, lcwidth])
+            lcwidth -= str.length
+            if align == :left
+              Ncurses.addstr(str = (" " * (cwidth - string_length)))
+              lcwidth -= str.length
+            elsif align == :center
+              space = cwidth - string_length            
+              Ncurses.addstr(str = (" " * (space / 2 + space % 2)))
+              lcwidth -= str.length
+            end
+          else # large
+            loff = @col_offsets[i] || 0 # Offset left to skip
+            cap_str = proc { |x|
+              if x.length > loff
+                Ncurses.addstr(str = x[loff..-1][0, lcwidth])
+                lcwidth -= str.length
+                loff = 0
+              else
+                loff -= x.length
+              end
+            }
+            cap_str[m.pre_match]
+            Ncurses.attron(Ncurses::A_REVERSE)
+            cap_str[m[0]]
+            Ncurses.attroff(Ncurses::A_REVERSE)
+            cap_str[m.post_match]
+            Ncurses.addstr(" " * lcwidth) if lcwidth
           end
         else # No match
-          case align
-          when :left
-            str = (a[i] || "").ljust(s)
-          when :right
-            str = (a[i] || "").rjust(s)
-          when :center
-            str = (a[i] || "").center(s)
+          col_string = a[i] || ""
+          if col_string.length <= cwidth
+            case align
+            when :left
+              str = col_string.ljust(cwidth)
+            when :right
+              str = col_string.rjust(cwidth)
+            when :center
+              str = col_string.center(cwidth)
+            end
+          else
+            str = ((col_string[@col_offsets[i] || 0, cwidth]) || "").ljust(cwidth)
           end
-          Ncurses.addstr(str[0, clen])
-          clen -= str.length; break if clen <= 0
+          Ncurses.addstr(str[0, cwidth])
         end
+        clen -= cwidth; break if clen <= 0
         @attr.off if chilighted
         Ncurses.addstr(str = @sep)
         clen -= str.length; break if clen <= 0            
@@ -364,6 +401,7 @@ class LineDisplay
     @col_names &= @col_headers  # Disable col_names if no headers
     if @column
       cnumber = @col_show.map { |x| (x + @col_start).to_s }
+      cnumber.each_with_index { |s, i| s.replace("< #{s} >") if (@sizes[i] || 0) > (@widths[@col_show[i]] || @col_width) }
       @sizes.max_update(cnumber.collect { |x| x.size })
     end
     if @col_names
@@ -375,7 +413,7 @@ class LineDisplay
     sline = 0
     if @column
       Ncurses.attron(Ncurses::A_UNDERLINE) if !@col_names
-      display_line(Line.new(cnumber), "", sline, false, false)
+      display_line(Line.new(cnumber), "", sline, false, false, true)
       Ncurses.attroff(Ncurses::A_UNDERLINE) if !@col_names
       sline += 1
     end

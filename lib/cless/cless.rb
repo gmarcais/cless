@@ -52,6 +52,7 @@ class Manager
     "column_align_right" => :column_align_right,
     "column_align_center" => :column_align_center,
     "column_align_auto" => :column_align_auto,
+    "column_width" => :column_width_prompt,
     "forward_search" => :forward_search,
     "backward_search" => :backward_search,
     "repeat_search" => :repeat_search,
@@ -173,6 +174,8 @@ class Manager
         when ?:.ord; long_command
         when ?q.ord; return nil
         when C::ESC; esc = true; next
+        when NC::KEY_SLEFT; column_offset_left
+        when NC::KEY_SRIGHT; column_offset_right
         else next
         end
       break
@@ -283,6 +286,17 @@ class Manager
   def scroll_left; scroll_sideways(-1); end
   def scroll_right; scroll_sideways(1); end
 
+  def column_offset_sideways(dir)
+    @offset_column = prebuff if prebuff
+    return if @offset_column.nil?
+    off = @display.col_offsets[@offset_column] || 0
+    off = [off + dir, 0].max
+    @display.col_offsets[@offset_column] = off
+  end
+
+  def column_offset_right; column_offset_sideways(1); end
+  def column_offset_left; column_offset_sideways(-1); end
+
   def goto_line(l)
     if prebuff
       @data.goto_line(prebuff)
@@ -315,6 +329,16 @@ class Manager
     a = i ? [i] : range_prompt("Columns to #{align || "auto"} align: ") or return nil
     return if a.empty?
     @display.col_align(align, a)
+  end
+
+  def column_width_prompt
+    i = prebuff
+    a = i ? [i] : range_prompt("Width of columns: ") or return nil
+    return nil if a.empty?
+    s = @display.prompt("Max width: ") or return nil
+    s = s.to_i
+    return nil if s < 5
+    a.map { |x| @display.widths[x] = s }
   end
 
   def show_hide_headers
