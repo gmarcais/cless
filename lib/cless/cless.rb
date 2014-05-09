@@ -174,8 +174,10 @@ class Manager
         when ?:.ord; long_command
         when ?q.ord; return nil
         when C::ESC; esc = true; next
-        when NC::KEY_SLEFT; column_offset_left
-        when NC::KEY_SRIGHT; column_offset_right
+        when NC::KEY_SLEFT, ?[.ord; column_offset_left
+        when NC::KEY_SRIGHT, ?].ord; column_offset_right
+        when ?{.ord; column_offset_start
+        when ?}.ord; column_offset_end
         else next
         end
       break
@@ -287,7 +289,9 @@ class Manager
   def scroll_right; scroll_sideways(1); end
 
   def column_offset_sideways(dir)
-    @offset_column = prebuff if prebuff
+    if prebuff && prebuff >= @display.col_start
+      @offset_column = prebuff - @display.col_start
+    end
     return if @offset_column.nil?
     off = @display.col_offsets[@offset_column] || 0
     off = [off + dir, 0].max
@@ -296,6 +300,21 @@ class Manager
 
   def column_offset_right; column_offset_sideways(1); end
   def column_offset_left; column_offset_sideways(-1); end
+  def column_offset_start
+    if prebuff && prebuff >= @display.col_start
+      @offset_column = prebuff - @display.col_start
+    end
+    return if @offset_column.nil?
+    @display.col_offsets[@offset_column] = 0
+  end
+
+  def column_offset_end
+    if prebuff && prebuff >= @display.col_start
+      @offset_column = prebuff - @display.col_start
+    end
+    return if @offset_column.nil? || @offset_column < @display.st_col
+    @display.col_offsets[@offset_column] = @display.sizes[@offset_column - @display.st_col] - (@display.widths[@offset_column] || @display.col_width)
+  end
 
   def goto_line(l)
     if prebuff

@@ -132,7 +132,7 @@ class LineDisplay
   }
   attr_accessor *DEFAULTS.keys
   attr_accessor :col_offsets, :widths
-  attr_reader :prompt_line
+  attr_reader :prompt_line, :sizes
 
   ISNUM = /^[+-]?\d*\.?\d*(?:[eE][+-]?\d+)?$/
 
