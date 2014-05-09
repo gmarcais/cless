@@ -113,6 +113,7 @@ class Curses
 end
 
 class LineDisplay
+  ISNUM = /^[+-]?[\d,]*\.?\d*(?:[eE][+-]?\d+)?$/
   DEFAULTS = {
     :line_highlight => true,    # Wether to hilight every other line
     :line_highlight_period => 2,
@@ -129,12 +130,12 @@ class LineDisplay
     :col_space => 1,            # Width of separator between columns
     :separator => " ",          # Separator caracter
     :padding => " ",            # Padding caracter
+    :right_align_re => ISNUM,   # Matching columns are right align by default
   }
   attr_accessor *DEFAULTS.keys
   attr_accessor :col_offsets, :widths
   attr_reader :prompt_line, :sizes
 
-  ISNUM = /^[+-]?\d*\.?\d*(?:[eE][+-]?\d+)?$/
 
   def separator=(s)
     @separator = (!s || s.empty?) ? " " : s
@@ -149,15 +150,15 @@ class LineDisplay
     DEFAULTS.each { |k, v|
       self.send("#{k}=", args[k].nil? ? v : args[k])
     }
-    @data        = data
-    @col_hide    = []
-    @align       = []       # column alignment: nil (i.e. auto), :left, :right, :center
-    @widths      = []       # max column widths
-    @col_offsets = []       # offsets for large columns
-    @col_headers = nil      # Actual names
-    @col_off     = 0
-    @st_col      = 0
-    @args        = args
+    @data           = data
+    @col_hide       = []
+    @align          = []       # column alignment: nil (i.e. auto), :left, :right, :center
+    @widths         = []       # max column widths
+    @col_offsets    = []       # offsets for large columns
+    @col_headers    = nil      # Actual names
+    @col_off        = 0
+    @st_col         = 0
+    @args           = args
   end
 
   def initialize_curses
@@ -274,7 +275,7 @@ class LineDisplay
         s, m = *sm
 
         align = force_center ? :center : @align[i]
-        align = (a[i] =~ ISNUM) ? :right : :left if align.nil?
+        align = (@right_align_re && a[i] =~ @right_align_re) ? :right : :left if align.nil?
 
         # Handle max column width
         cwidth = [s, clen, @widths_show[i]].min # Actual width of column

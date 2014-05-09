@@ -52,6 +52,7 @@ class Manager
     "column_align_right" => :column_align_right,
     "column_align_center" => :column_align_center,
     "column_align_auto" => :column_align_auto,
+    "right_align_regexp" => :right_align_regexp_prompt,
     "column_width" => :column_width_prompt,
     "forward_search" => :forward_search,
     "backward_search" => :backward_search,
@@ -656,6 +657,28 @@ class Manager
     end
     @data.highlight_regexp = regexp
     "New highlight regexp: /#{regexp}/"
+  end
+
+  def right_align_regexp_prompt
+    current = @display.right_align_re == LineDisplay::ISNUM ? "number" : @display.right_align_re.to_s
+    s = @display.prompt("Right align regexp(/#{current}/): ")
+    s.strip! if s
+    if s.nil? || s.empty?
+      @display.right_align_re = LineDisplay::ISNUM
+      return "Automatic right alignment of numbers"
+    elsif s == "//"
+      @display.right_align_re = nil
+      return "No automatic right alignment"
+    end
+
+    begin
+      s.gsub!(%r{^/|/$}, '')
+      regexp = Regexp.new(s)
+    rescue => e
+      return "Invalid regexp /#{s}/: #{e.message}"
+    end
+    @display.right_align_re = regexp
+    "Automatic right alignment regexp: /#{regexp}/"
   end
 
   def change_separator_prompt
