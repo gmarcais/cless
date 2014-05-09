@@ -25,7 +25,7 @@ module Help
  L                                show byte offset instead of line number
  h                                hide column (space separated list)
  H                                show column (space separated list)
- )                                change first column index
+ ` (back-tick)                    change first column index
  o                                toggle highlighting of alternate lines
  O                                toggle highlighting of alternate columns 
  m                                shift line highlighting start
@@ -34,7 +34,7 @@ module Help
                                          10o -> absolute offset
                                          10% -> percentage in file
  p                                go to percentage.
- v                                format columns. 10:%.1f formats columns 10
+ v                                format columns.
  i                                ignore lines. Lines or regexp
  I                                remove ignore lines patterns
  /                                forward search
@@ -46,9 +46,13 @@ module Help
  S                                change split regexp
  t                                toggle column names
  ^                                use a line from file for column headers
- x                                change column separator caracter
- X                                change column padding string
- r                                refresh display
+ |                                change column separator character
+ [                                shift content of a column to the left
+ ]                                shift content of a column to the right
+ {                                shift content of a column to the start
+ }                                shift content of a column to the end
+ \\                               change column padding string
+ r, R, ^R, ^L                     refresh display
  :                                command menu
  q                                quit
 
@@ -75,8 +79,6 @@ module Help
  switches found on the command line. For example, to always display the line
  numbers and columns:
     CLESS="--lines --column"
-
- More details at http://genome1.umd.edu
 EOF
 
 

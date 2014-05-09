@@ -122,7 +122,7 @@ class LineDisplay
     :col_highlight_shift => 1,
     :column => false,           # Wether to display column number
     :col_start => 1,            # 1-based column numbering by default
-    :col_width => 20,           # Maximum column width
+    :col_width => 50,           # Maximum column width
     :line => false,             # Wether to display line number
     :line_offset => false,      # Display line offset instead of number
     :col_names => false,        # Wether to display column names
@@ -263,8 +263,6 @@ class LineDisplay
 
     if Line === l
       a = sift ? l.values_at(*@col_show) : l.values_at(0..-1)
-#      if l.has_match || (@col_highlight && !highlighted)
-#        # Lines has search matches or do column highlight
       # Now always display one field at a time
       ms = sift ? l.matches_at(*@col_show) : l.matches_at(0..-1)
       clen = @len
@@ -279,8 +277,7 @@ class LineDisplay
         align = (a[i] =~ ISNUM) ? :right : :left if align.nil?
 
         # Handle max column width
-        mwidth = (@widths[i] || @col_width)
-        cwidth = [s, clen, mwidth].min # Actual width of column
+        cwidth = [s, clen, @widths_show[i]].min # Actual width of column
         lcwidth = cwidth # lcwdith is width left in column
 
         if m 
@@ -311,7 +308,7 @@ class LineDisplay
               lcwidth -= str.length
             end
           else # large
-            loff = @col_offsets[i] || 0 # Offset left to skip
+            loff = @offsets_show[i] || 0 # Offset left to skip
             cap_str = proc { |x|
               if x.length > loff
                 Ncurses.addstr(str = x[loff..-1][0, lcwidth])
@@ -326,7 +323,7 @@ class LineDisplay
             cap_str[m[0]]
             Ncurses.attroff(Ncurses::A_REVERSE)
             cap_str[m.post_match]
-            Ncurses.addstr(" " * lcwidth) if lcwidth
+            Ncurses.addstr(" " * lcwidth) if lcwidth > 0
           end
         else # No match
           col_string = a[i] || ""
@@ -340,13 +337,13 @@ class LineDisplay
               str = col_string.center(cwidth)
             end
           else
-            str = ((col_string[@col_offsets[i] || 0, cwidth]) || "").ljust(cwidth)
+            str = (col_string[@offsets_show[i], cwidth] || "").ljust(cwidth)
           end
           Ncurses.addstr(str[0, cwidth])
         end
         clen -= cwidth; break if clen <= 0
         @attr.off if chilighted
-        Ncurses.addstr(str = @sep)
+        Ncurses.addstr(str = @sep[0, clen])
         clen -= str.length; break if clen <= 0            
       }
       @attr.reset if @col_highlight
@@ -401,7 +398,7 @@ class LineDisplay
     @col_names &= @col_headers  # Disable col_names if no headers
     if @column
       cnumber = @col_show.map { |x| (x + @col_start).to_s }
-      cnumber.each_with_index { |s, i| s.replace("< #{s} >") if (@sizes[i] || 0) > (@widths[@col_show[i]] || @col_width) }
+      cnumber.each_with_index { |s, i| s.replace("< #{s} >") if @sizes[i] > @widths_show[i] }
       @sizes.max_update(cnumber.collect { |x| x.size })
     end
     if @col_names
@@ -432,6 +429,8 @@ class LineDisplay
     @col_show = (@st_col..(@st_col + @col_hide.size + @len / 2)).to_a
     @col_show -= @col_hide
     @sizes = @data.sizes.values_at(*@col_show).map { |x| x || 0 }
+    @widths_show = @widths.values_at(*@col_show).map { |x| x || @col_width }
+    @offsets_show = @col_offsets.values_at(*@col_show).map { |x| x || 0 }
     if @line
       @linec = @line_offset ? @data.max_offset : (@data.line + lines)
       @linec = @linec.to_s.size

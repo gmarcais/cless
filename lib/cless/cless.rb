@@ -88,7 +88,7 @@ class Manager
 
   def main_loop
     if @status.empty?
-      @status = "Help? Press a or F1"
+      @status = "Help? Press ~ or F1"
     end
     while !@done do
       @data.cache_fill(@display.nb_lines)
@@ -121,7 +121,7 @@ class Manager
       k = Ncurses.getch
       status = 
         case k
-        when NC::KEY_DOWN, NC::KEY_ENTER, C::CTRL_N, ?e.ord.ord, C::CTRL_E, ?j.ord, ?\n.ord, ?\r.ord
+        when NC::KEY_DOWN, NC::KEY_ENTER, C::CTRL_N, ?e.ord, C::CTRL_E, ?j.ord, C::CTRL_J, ?\n.ord, ?\r.ord
           scroll_forward_line
         when NC::KEY_UP, ?y.ord, C::CTRL_Y, C::CTRL_P, ?k.ord, C::CTRL_K
           scroll_backward_line
@@ -152,8 +152,9 @@ class Manager
         when ?H.ord; hide_columns_prompt(:show)
         when ?A.ord; column_alignment(:right)
         when ?a.ord; column_alignment(:left)
-        when ?).ord; esc ? scroll_right : change_column_start_prompt
-        when ?(.ord; esc ? scroll_left : true
+        when ?`.ord; change_column_start_prompt
+        when ?).ord; esc ? scroll_right : column_width_increase
+        when ?(.ord; esc ? scroll_left : column_width_decrease
         when ?/.ord; search_prompt(:forward)
         when ??.ord; search_prompt(:backward)
         when ?n.ord; repeat_search
@@ -163,12 +164,12 @@ class Manager
         when ?E.ord; export_prompt
         when ?t.ord; show_hide_headers
         when ?p.ord, ?%.ord; goto_percent
-        when ?x.ord; change_separator_prompt
-        when ?X.ord; change_padding_prompt
+        when ?|.ord; change_separator_prompt
+        when ?\\.ord; change_padding_prompt
         when ?^.ord; change_headers_to_line_content_prompt
         when ?r.ord, ?R.ord, C::CTRL_R, C::CTRL_L; @data.clear_cache; NC::endwin; NC::doupdate
         when NC::KEY_RESIZE; nc = true # Will break to refresh display
-        when NC::KEY_F1, ?a.ord; display_help
+        when NC::KEY_F1, ?~.ord; display_help
         when (?0.ord)..(?9.ord); @prebuff += k.chr; next
         when NC::KEY_BACKSPACE, ?\b.ord; esc ? @prebuff = "" : @prebuff.chop!; next
         when ?:.ord; long_command
@@ -312,8 +313,9 @@ class Manager
     if prebuff && prebuff >= @display.col_start
       @offset_column = prebuff - @display.col_start
     end
-    return if @offset_column.nil? || @offset_column < @display.st_col
-    @display.col_offsets[@offset_column] = @display.sizes[@offset_column - @display.st_col] - (@display.widths[@offset_column] || @display.col_width)
+    return if @offset_column.nil?
+    @display.col_offsets[@offset_column] =
+      [0, @data.sizes[@offset_column] - (@display.widths[@offset_column] || @display.col_width)].max
   end
 
   def goto_line(l)
@@ -355,10 +357,22 @@ class Manager
     a = i ? [i] : range_prompt("Width of columns: ") or return nil
     return nil if a.empty?
     s = @display.prompt("Max width: ") or return nil
-    s = s.to_i
-    return nil if s < 5
+    s = [s.to_i, 5].max
     a.map { |x| @display.widths[x] = s }
   end
+
+  def column_width_change(x)
+    if prebuff && prebuff >= @display.col_start
+      @offset_column = prebuff - @display.col_start
+    end
+    return if @offset_column.nil?
+    w = (@display.widths[@offset_column] || @display.col_width) + x
+    w = 5 if w < 5
+    @display.widths[@offset_column] = w
+  end
+
+  def column_width_increase; column_width_change(1); end
+  def column_width_decrease; column_width_change(-1); end
 
   def show_hide_headers
     return "No names defined" if !@display.col_names && !@display.col_headers

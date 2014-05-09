@@ -22,6 +22,7 @@ options = {
   :col_highlight => false,
   :col_highlight_period => 2,
   :col_highlight_shift => 0,
+  :col_width => 50,
   :parse_header => true,
   :foreground => "none",
   :background => "none",
@@ -126,6 +127,10 @@ loop do
     opts.on("--column-start INDEX", Integer,
             "first column index #{val[:col_start]}") { |v|
       options[:col_start] = v
+    }
+    opts.on("--col-width WIDTH", Integer,
+            "default maximum column width") { |v|
+      options[:col_width] = [v, 5].max
     }
     opts.on("--start-line LINE", Integer,
             "first line to display #{val[:start_line]}") { |v|
