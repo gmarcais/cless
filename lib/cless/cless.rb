@@ -1,5 +1,10 @@
 require 'ncurses'
-require 'mmap'
+begin
+  require 'mmap'
+  $have_mmap = true
+rescue LoadError
+  $have_mmap = false
+end
 require 'tempfile'
 
 require 'cless/data'
@@ -485,12 +490,14 @@ class Manager
   def save_file_prompt
     s = @display.prompt("Save to: ")
     return nil if !s || s.empty?
-    begin
-      File.link(@data.file_path, s)
-      return "Hard linked"
-    rescue Errno::EXDEV => e
-    rescue Exception => e
-      return "Error: #{e.message}"
+    if @data.file_path
+      begin
+        File.link(@data.file_path, s)
+        return "Hard linked"
+      rescue Errno::EXDEV => e
+      rescue Exception => e
+        return "Error: #{e.message}"
+      end
     end
 
     # Got here, hard link failed. Copy by hand.

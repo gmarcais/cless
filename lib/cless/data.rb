@@ -59,9 +59,13 @@ class MappedStream
     DEFAULTS.each { |k, v|
       instance_variable_set("@#{k}", args[k] || v)
     }
-    @tfd = Tempfile.new(Process.pid.to_s, @tmp_dir)
-    @ptr = Mmap.new(@tfd.path, "w")
-    @ptr.extend(10 * @buf_size)
+    if $have_mmap
+      @tfd = Tempfile.new(Process.pid.to_s, @tmp_dir)
+      @ptr = Mmap.new(@tfd.path, "w")
+      @ptr.extend(10 * @buf_size)
+    else
+      @ptr = ""
+    end
 
     if block_given?
       begin
@@ -72,7 +76,7 @@ class MappedStream
     end
   end
 
-  def file_path; @tfd.path; end
+  def file_path; @tfd ? @tfd.path : nil; end
 
   def munmap
     @ptr.munmap rescue nil

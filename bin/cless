@@ -212,7 +212,7 @@ class KeyboardInterrupt < StandardError; end
 ptr = if ARGV.empty?
         MappedStream.new(stdin, options)
       else
-        first = true
+        first = $have_mmap
         begin
           first ? MappedFile.new(ARGV[0]) : 
             MappedStream.new(open(ARGV[0]), options)
