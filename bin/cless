@@ -206,7 +206,7 @@ if ARGV.empty? && $stdin.tty?
 end
 if !$stdin.tty?
   stdin = $stdin.dup
-  $stdin.reopen($stdout)
+  $stdin.reopen("/dev/fd/1", "r")
 end
 
 class KeyboardInterrupt < StandardError; end
@@ -252,18 +252,11 @@ begin
     opts.parse(a)
     opts = nil
   end
-
-  history = {}
-  begin
-    history = File.open(options[:history_file], "r") { |fd| YAML::load(fd) }
-  rescue Errno::EACCES
-  rescue Errno::ENOENT
-  end
   
   data = MapData.new(ptr, options[:split_regexp])
   display = LineDisplay.new(data, options)
   manager = Manager.new(data, display, db)
-  manager.search_history = history[:search] if history[:search]
+  manager.load_history(options[:history_file]) if options[:history_file]
   trap("SIGINT") { $interrupt.raise }
   data.cache_fill(1)
   
@@ -291,10 +284,5 @@ rescue KeyboardInterrupt
   # Quit normally
 ensure
   ptr.munmap
-  begin
-    File.open(options[:history_file], "w") { |fd|
-      fd.print({ :search => manager.search_history }.to_yaml)
-    }
-  rescue Errno::EACCES
-  end
+  manager.save_history(options[:history_file])
 end

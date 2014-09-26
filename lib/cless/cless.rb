@@ -95,6 +95,52 @@ class Manager
   def interrupt_set; @interrupt = true; end
   def interrupt_reset; i, @interrupt = @interrupt, false; i; end
 
+  def ttyname
+    [Proc.new { File.readlink("/proc/self/fd/0") },
+     Proc.new { `tty`.chomp }].each { |m|
+      begin
+        return m.call
+      rescue Errno::ENOENT
+      end
+    }
+    return "/dev/unknown"
+  end
+
+  def load_history(file)
+    tty = ttyname
+    history = File.open(file, "r") { |fd|
+      fd.flock(File::LOCK_SH)
+      YAML::load(fd)
+    }
+    history = {} unless Hash === history
+    history["tty"] = {} unless Hash === history["tty"]
+    tty_history = history["tty"][tty] || history["tty"][history["recent_tty"]] || {}
+    @search_history = tty_history["search"] || []
+  rescue Errno::EACCES
+  rescue Errno::ENOENT
+  end
+
+  def save_history(file)
+    tty = ttyname
+    File.open(file, File::RDWR|File::CREAT, 0644) { |fd|
+      fd.flock(File::LOCK_EX)
+
+      history = YAML::load(fd)
+      history = {} unless Hash === history
+      history["tty"] = {} unless Hash === history["tty"]
+      history["tty"][tty] = {} unless Hash === history["tty"][tty]
+      history["tty"][tty]["search"] = @search_history
+      history["recent_tty"] = tty
+
+      fd.rewind
+      fd.print(history.to_yaml)
+      fd.flush
+      fd.truncate(fd.pos)
+    }
+  rescue Errno::EACCES
+  rescue Errno::ENOENT
+  end
+
   def main_loop
     if @status.empty?
       @status = "Help? Press ~ or F1"
