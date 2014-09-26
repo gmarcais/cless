@@ -7,6 +7,7 @@ trap("SIGHUP") { exit }
 
 require 'cless/cless'
 require 'optparse'
+require 'yaml'
 
 Version = [0, 3, 18]
 
@@ -40,6 +41,7 @@ options = {
   :padding => " ",
   :start_line => 1,
   :header_line => nil,
+  :history_file => File.expand_path("~/.cless_history")
 }
 onoff = proc { |k| "(" + (options[k] ? "on" : "off") + ")" }
 val = proc { |k| "(" + (options[k] || "none").to_s + ")" }
@@ -250,10 +252,18 @@ begin
     opts.parse(a)
     opts = nil
   end
+
+  history = {}
+  begin
+    history = File.open(options[:history_file], "r") { |fd| YAML::load(fd) }
+  rescue Errno::EACCES
+  rescue Errno::ENOENT
+  end
   
   data = MapData.new(ptr, options[:split_regexp])
   display = LineDisplay.new(data, options)
   manager = Manager.new(data, display, db)
+  manager.search_history = history[:search] if history[:search]
   trap("SIGINT") { $interrupt.raise }
   data.cache_fill(1)
   
@@ -281,4 +291,10 @@ rescue KeyboardInterrupt
   # Quit normally
 ensure
   ptr.munmap
+  begin
+    File.open(options[:history_file], "w") { |fd|
+      fd.print({ :search => manager.search_history }.to_yaml)
+    }
+  rescue Errno::EACCES
+  end
 end

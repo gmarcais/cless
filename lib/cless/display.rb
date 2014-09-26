@@ -477,6 +477,7 @@ class LineDisplay
   # :max_len    Width of window
   # :string     Initial value
   # :cursor_pos Initial cursor position
+  # :history    Array containing the history to use with up and down arrows
   def read_line(y, x, opts = {})
     window       = opts[:window] || Ncurses.stdscr
     max_len      = opts[:max_len] || (window.getmaxx - x - 1)
@@ -484,6 +485,9 @@ class LineDisplay
     cursor_pos   = opts[:cursor_pos] || @prompt_line.size
     other        = opts[:other]
     extra        = opts[:extra]
+    history      = opts[:history] || []
+    history_pos  = 0
+    save_line    = ""
 
     loop do
       window.mvaddstr(y,x,@prompt_line)
@@ -519,6 +523,21 @@ class LineDisplay
         end
       when ?\e.ord          # ESCAPE
         return "", 0, ch
+      when Ncurses::KEY_UP
+        if history_pos < history.size
+          save_line = @prompt_line if history_pos == 0
+          window.mvaddstr(y, x, " " * @prompt_line.length)
+          @prompt_line = history[history_pos].dup
+          history_pos += 1
+          cursor_pos   = @prompt_line.size
+        end
+      when Ncurses::KEY_DOWN
+        if history_pos > 0
+          window.mvaddstr(y, x, " " * @prompt_line.length)
+          history_pos -= 1
+          @prompt_line = history_pos > 0 ? history[history_pos - 1].dup : save_line
+          cursor_pos   = @prompt_line.size
+        end
       when C::SPACE..255 # remaining printables
         if (cursor_pos < max_len)
           @prompt_line[cursor_pos,0] = ch.chr

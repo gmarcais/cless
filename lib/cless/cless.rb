@@ -75,6 +75,7 @@ class Manager
     "help" => :display_help,
   }
 
+  attr_accessor :max_search_history, :search_history
   def initialize(data, display, db)
     @data = data
     @display = display
@@ -86,6 +87,8 @@ class Manager
     @full_screen_lines = nil
     @scroll_columns = nil
     @interrupt = false
+    @search_history = []
+    @max_search_history = 100
   end
 
   def done; @done = true; end
@@ -453,11 +456,16 @@ class Manager
   def backward_search; search_prompt(:backward); end
   def search_prompt(dir = :forward)
     s = @display.prompt("%s Search: " % 
-                          [(dir == :forward) ? "Forward" : "Backward"])
+                          [(dir == :forward) ? "Forward" : "Backward"],
+                        { :history => @search_history })
     s or return nil
     if s =~ /^\s*$/
       @data.search_clear
     else
+      hist_index = @search_history.index(s)
+      @search_history.slice!(hist_index) if hist_index
+      @search_history.unshift(s)
+      @search_history = @search_history[0, @max_search_history]
       begin
         @search_dir = dir
         pattern = Regexp.new(s)
