@@ -445,13 +445,39 @@ class LineDisplay
 
   def wait_status(status, wprompt)
     len = Ncurses.stdscr.getmaxx
+    aprompt = wprompt[0, len - 1]
     Ncurses.attrset(Ncurses::A_NORMAL)
-    Ncurses.mvaddstr(Ncurses.stdscr.getmaxy-1, 0, wprompt[0, len-1])
+    Ncurses.mvaddstr(Ncurses.stdscr.getmaxy-1, 0, aprompt)
     
-    nlen = len - wprompt.length
+    nlen = len - aprompt.length
     Ncurses.attrset(Ncurses::A_BOLD)
     Ncurses.addstr(status.rjust(nlen)[0, nlen])
     Ncurses.attrset(Ncurses::A_NORMAL)
+  end
+
+  def start_active_status(status)
+    len = Ncurses.stdscr.getmaxx
+    astatus = status[0, len - 2]
+    Ncurses.attrset(Ncurses::A_NORMAL)
+    Ncurses.mvaddstr(Ncurses.stdscr.getmaxy-1, 0, status[0, len - 2])
+
+    nlen = len - astatus.length
+    Ncurses.addstr('|'.rjust(nlen)[0, nlen])
+    Ncurses.refresh
+
+    @active_th = Thread.new {
+      loop {
+        ['/', '-', '\\', '|'].each { |c|
+          sleep(0.5)
+          Ncurses.mvaddstr(Ncurses.stdscr.getmaxy-1, len - 1, c)
+          Ncurses.refresh
+        }
+      }
+    }
+  end
+
+  def end_active_status
+    @active_th.kill
   end
 
   def flush

@@ -284,5 +284,5 @@ rescue KeyboardInterrupt
   # Quit normally
 ensure
   ptr.munmap
-  manager.save_history(options[:history_file])
+  manager.save_history(options[:history_file]) unless manager.nil?
 end

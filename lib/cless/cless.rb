@@ -159,7 +159,7 @@ class Manager
     esc = false
     while !@done do
       nc = false        # Set to true if no data change
-      data_fd = @data.select_fd
+      data_fd = @data.select_fd(@display.nb_lines)
       prompt = data_fd ? "+:" : ":"
       @display.wait_status(@status, prompt + @prebuff)
       if data_fd
@@ -508,16 +508,22 @@ class Manager
     if s =~ /^\s*$/
       @data.search_clear
     else
-      hist_index = @search_history.index(s)
-      @search_history.slice!(hist_index) if hist_index
-      @search_history.unshift(s)
-      @search_history = @search_history[0, @max_search_history]
       begin
-        @search_dir = dir
-        pattern = Regexp.new(s)
-        @data.search(pattern, dir) or return "Pattern not found!"
-      rescue RegexpError => e
-        return "Bad regexp: #{e.message}"
+        @display.start_active_status("Searching '#{s}'")
+
+        hist_index = @search_history.index(s)
+        @search_history.slice!(hist_index) if hist_index
+        @search_history.unshift(s)
+        @search_history = @search_history[0, @max_search_history]
+        begin
+          @search_dir = dir
+          pattern = Regexp.new(s)
+          @data.search(pattern, dir) or return "Pattern not found!"
+        rescue RegexpError => e
+        return "Bad attr_reader :egexp: #{e.message}"
+        end
+      ensure
+        @display.end_active_status
       end
     end
     true

@@ -59,7 +59,8 @@ class MappedStream
     DEFAULTS.each { |k, v|
       instance_variable_set("@#{k}", args[k] || v)
     }
-    if $have_mmap
+    if false
+#    if $have_mmap
       @tfd = Tempfile.new(Process.pid.to_s, @tmp_dir)
       @ptr = Mmap.new(@tfd.path, "w")
       @ptr.extend(10 * @buf_size)
@@ -87,9 +88,10 @@ class MappedStream
   def rindex(*args); @ptr.rindex(*args); end
   
   def read_block
-    @fd.sysread(@buf_size, @buf)
+    @fd.read_nonblock(@buf_size, @buf)
     @ptr << @buf
-  rescue Errno::EAGAIN, Errno::EINTR
+    true
+  rescue IO::WaitReadable, Errno::EINTR => e
     false
   rescue EOFError
     @more = false
@@ -105,6 +107,20 @@ class MappedStream
       read_block or return nil
     end
   end
+
+  def search_rindex(*args); rindex(*args); end
+  def search_index(substr, off = 0)
+    loop do
+      r = @ptr.index(substr, off) and return r
+      off = (@ptr.rindex("\n", @ptr.size) || -1) + 1
+      select([@fd]) or return nil
+      read_block or return nil
+    end
+  end
+  def more_fd
+    @more ? @fd : nil
+  end
+
   def [](*args); @ptr[*args]; end
 
   # Get the total number of lines
@@ -160,8 +176,11 @@ class MappedFile
   def munmap; @ptr.munmap; end
   def rindex(*args); @ptr.rindex(*args); end
   def index(*args); @ptr.index(*args); end
+  def search_rindex(*args); rindex(*args); end
+  def search_index(*args); index(*args); end
   def [](*args); @ptr[*args]; end
   def each_line(&b); @ptr.each_line(&b); end
+  def more_fd; nil; end
 
   def lines
     return @lines if @lines
@@ -280,13 +299,18 @@ class MapData
     @str.size
   end
 
-  def select_fd
-    if @need_more && @str.respond_to?(:more) && @str.respond_to?(:fd)
-      @str.more ? @str.fd : nil
-    else
-      nil
-    end
+  # Return a file descriptor to listen on (select) if there is less
+  # than n lines in the cache, or nil if not needed, or file is memory
+  # mapped and no listening is necessary.
+  def select_fd(n)
+    @cache.size < n ? @str.more_fd : nil
   end
+  #   if @need_more && @str.respond_to?(:more) && @str.respond_to?(:fd)
+  #     @str.more ? @str.fd : nil
+  #   else
+  #     nil
+  #   end
+  # end
 
   # yield n lines with length len to be displayed
   def lines(n)
@@ -484,9 +508,9 @@ class MapData
   private
   def search_next(dir = :forward)
     if dir == :forward
-      m = @str.index(@pattern, @off2)
+      m = @str.search_index(@pattern, @off2)
     else
-      m = @str.rindex(@pattern, @off)
+      m = @str.search_rindex(@pattern, @off)
     end
     return false if !m
     if dir == :forward
