@@ -51,6 +51,8 @@ module Help
  ]                                shift content of a column to the right
  {                                shift content of a column to the start
  }                                shift content of a column to the end
+ (                                reduce width of a column
+ )                                increase width of a column
  \\                               change column padding string
  r, R, ^R, ^L                     refresh display
  :                                command menu
