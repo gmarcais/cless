@@ -477,7 +477,8 @@ class LineDisplay
   end
 
   def end_active_status
-    @active_th.kill
+    @active_th.kill if @active_th
+    @active_th = nil
   end
 
   def flush

@@ -17,6 +17,17 @@ require 'cless/help'
 NC = Ncurses
 C = Curses
 
+def select_or_cancel(*fds)
+  ifds = [$stdin] + fds.dup
+  loop {
+    ofds = select(ifds)[0]
+    if ofds.delete($stdin)
+      return nil if Ncurses.getch == C::ESC
+    end
+    return ofds unless ofds.empty?
+  }
+end
+
 class String
   def split_with_quotes(sep = '\s', q = '\'"')
     r = / \G(?:^|[#{sep}])     # anchor the match
@@ -164,8 +175,7 @@ class Manager
       @display.wait_status(@status, prompt + @prebuff)
       if data_fd
         @display.flush
-        in_fds = [$stdin, data_fd]
-        in_fds = select(in_fds)
+        in_fds = select([$stdin, data_fd])
         if in_fds[0].include?(data_fd)
           status = :more
           nc = true
@@ -374,12 +384,18 @@ class Manager
   end
 
   def goto_line(l)
-    if prebuff
-      @data.goto_line(prebuff)
+    if l == 0
+      return @data.goto_start ? "" : "Start of file"
+    elsif l < 0
+        @display.start_active_status("Skipping to end of file")
+        return @data.goto_end ? "" : "End of file"
     else
-      (l < 0) ? @data.goto_end : @data.goto_start
+      @display.start_active_status("Skipping to line #{l}")
+      @data.goto_line(prebuff)
     end
     true
+  ensure
+    @display.end_active_status
   end
 
   def unhide_columns; hide_columns_prompt(true); end
@@ -578,25 +594,31 @@ class Manager
   end
 
   def goto_position_prompt
-    s = @display.prompt("Goto: ") or return nil
-    s.strip!
+    s = prebuff || @display.prompt("Goto: ") or return nil
+    s = s.to_s.strip
+
     case s[-1]
-    when ?p.ord, ?%.ord
+    when "p", "%"
       s.slice!(-1)
       f = s.to_f
       return "Invalid percentage" if f <= 0.0 || f > 100.0
+      @display.start_active_status("Goto %d%%" % f.round)
       @data.goto_percent(f)
-    when ?o.ord
+    when "o"
       s.slice!(-1)
       i = s.to_i
       return "Invalid offset" if i < 0
+      @display.start_active_status("Goto offset #{i}")
       @data.goto_offset(i)
     else
       i = s.to_i
       return "Invalid line number" if i <= 0
+      @display.start_active_status("Goto line #{i}")
       @data.goto_line(i)
     end
     true
+  ensure
+    @display.end_active_status
   end
 
   def column_format_prompt

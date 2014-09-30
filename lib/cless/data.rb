@@ -113,7 +113,7 @@ class MappedStream
     loop do
       r = @ptr.index(substr, off) and return r
       off = (@ptr.rindex("\n", @ptr.size) || -1) + 1
-      select([@fd]) or return nil
+      select_or_cancel(@fd) or return nil
       read_block or return nil
     end
   end
@@ -129,7 +129,10 @@ class MappedStream
     return @lines unless @more || @lines.nil?
     lines = @ptr.count("\n")
     while @more
-      read_block or break
+      unless read_block
+        select_or_cancel(@fd) or break
+        next
+      end
       lines += @buf.count("\n")
       return lines if line_stop && lines >= line_stop
       return @ptr.size if offset_stop && @ptr.size >= offset_stop
@@ -321,17 +324,23 @@ class MapData
   end
 
   def goto_start
+    return false if @line == 0
     @line = @line2 = 0
     @off = @off2 = 0
     @cache.clear
+    return true
   end
 
   def goto_end
-    @line = @line2 = @str.lines
+    old_line = @line2
+    @line2 = @str.lines
+    return false if @line2 == old_line
+    @line = @line2
     @off2 = @off = @str.size
     cache_size = @cache.size
     @cache.clear
     scroll(-cache_size)
+    return true
   end
 
   def goto_line(nb)
@@ -598,7 +607,7 @@ class MapData
   def skip_forward(n)
     i = 0
     n.times do 
-      noff = @str.index("\n", @off) or break
+      noff = @str.search_index("\n", @off) or break
       @off = noff + 1
       i += 1
     end
