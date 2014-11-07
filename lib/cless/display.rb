@@ -131,6 +131,7 @@ class LineDisplay
     :separator => " ",          # Separator caracter
     :padding => " ",            # Padding caracter
     :right_align_re => ISNUM,   # Matching columns are right align by default
+    :hide_ignore => false       # Hide lines that are ignored
   }
   attr_accessor *DEFAULTS.keys
   attr_accessor :col_offsets, :widths
@@ -145,7 +146,7 @@ class LineDisplay
     @padding = (!s || s.empty?) ? " " : s
   end
 
-  attr_accessor :col_headers
+  attr_accessor :col_headers, :hide_ignored
   def initialize(data, args = {})
     DEFAULTS.each { |k, v|
       self.send("#{k}=", args[k].nil? ? v : args[k])
@@ -357,7 +358,9 @@ class LineDisplay
     else # l is an ignored line
       off = @col_off
       clen = @len
-      if l.has_match
+      if @hide_ignored
+        Ncurses.addstr(" " * clen) if clen > 0
+      elsif l.has_match
         m = l.matches
         s = m.pre_match
         if s.length > off && clen > 0
@@ -383,7 +386,7 @@ class LineDisplay
           clen -= str.length
         end
         Ncurses.addstr(" " * clen) if clen > 0
-      else
+      else # l.has_match
         s = l.str
         if s.length > off && clen > 0
           Ncurses.addstr(str = s[off, @len].ljust(clen)[0, clen])
@@ -572,9 +575,8 @@ class LineDisplay
         else
           Ncurses.beep
         end
-      else
-        other[ch] if other
       end
+      other[ch] if other
     end    	
   end 
 end

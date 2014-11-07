@@ -57,6 +57,7 @@ class Manager
     "scroll_left" => :scroll_left,
     "hide_columns" => :hide_columns_prompt,
     "unhide_columns" => :unhide_columns,
+    "toggle_hide_ignored" => :toggle_hide_ignored,
     "toggle_headers" => :show_hide_headers,
     "change_headers_to_line" => :change_headers_to_line_content_prompt,
     "toggle_line_highlight" => :toggle_line_highlight,
@@ -411,6 +412,8 @@ class Manager
   rescue => e
     return e.message
   end
+
+  def toggle_hide_ignored; @display.hide_ignored = !@display.hide_ignored; end
 
   def column_align_left; column_alignment(:left); end
   def column_align_right; column_alignment(:right); end
