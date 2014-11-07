@@ -91,7 +91,7 @@ class MappedStream
     @fd.read_nonblock(@buf_size, @buf)
     @ptr << @buf
     true
-  rescue IO::WaitReadable, Errno::EINTR => e
+  rescue Errno::EWOULDBLOCK, Errno::EAGAIN, Errno::EINTR => e
     false
   rescue EOFError
     @more = false
