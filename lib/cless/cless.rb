@@ -1,4 +1,6 @@
-require 'ncurses'
+#require 'ncurses'
+require 'rubygems'
+require 'ncursesw'
 begin
   require 'mmap'
   $have_mmap = true
@@ -686,7 +688,7 @@ class Manager
     a.collect { |x|
       o = case x
           when Range; (x.begin + 1)..(x.end + 1)
-          when Fixnum; x + 1
+          when Integer; x + 1
           else x
           end
       o.inspect

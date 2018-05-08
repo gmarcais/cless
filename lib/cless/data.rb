@@ -481,7 +481,7 @@ class MapData
   def formatted_column_list; @formats ? @formats.keys : []; end
 
   def add_ignore(pattern)
-    return nil unless [Fixnum, Range, Regexp].any? { |c| c === pattern }
+    return nil unless [Integer, Range, Regexp].any? { |c| c === pattern }
     (@ignored ||= []) << pattern
     true
   end
@@ -501,7 +501,7 @@ class MapData
       r, @ignored = @ignored, nil
       return r
     end
-    return nil unless [Fixnum, Range, Regexp].any? { |c| c === pattern }
+    return nil unless [Integer, Range, Regexp].any? { |c| c === pattern }
     r = @ignored.delete(pattern)
     @ignored = nil if @ignored.empty?
     r
@@ -553,7 +553,7 @@ class MapData
   def line_ignore?(str, i)
     @ignored.any? do |pat|
       case pat
-      when Range, Fixnum; pat === i
+      when Range, Integer; pat === i
       when Regexp; pat === str
       else false
       end
