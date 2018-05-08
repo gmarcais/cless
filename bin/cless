@@ -6,10 +6,9 @@ trap("SIGQUIT") { exit }
 trap("SIGHUP") { exit }
 
 require 'cless/cless'
+require 'cless/version'
 require 'optparse'
 require 'yaml'
-
-Version = [0, 3, 18]
 
 options = {
   :column => false,
