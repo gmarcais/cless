@@ -37,7 +37,7 @@ spec = Gem::Specification.new do |s|
   s.executables = ["cless"]
 
   # Depends on ncursesw
-  s.add_runtime_dependency "ncursesw"
+  s.add_runtime_dependency "ncursesw", '~> 1.4'
 end
 Gem::PackageTask.new(spec) do |pkg|
   pkg.need_zip = false
